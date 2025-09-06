@@ -1,11 +1,26 @@
 import express from 'express';
+import connectDB from './config/database.js';
+
 
 const app = express();
+const PORT = process.env.PORT || 8080;
 
+// Connect to database
+connectDB();
+
+// Middleware
+app.use(express.json());
+
+// Basic route
 app.get('/', (req, res) => {
-    res.send('Hello World from Server');
+    res.json({
+        message: 'NextMCQ API Server',
+        version: '1.0.0',
+        status: 'running'
+    });
 });
 
-app.listen(8080, () => {
-    console.log('Server is running on port 8080');
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
