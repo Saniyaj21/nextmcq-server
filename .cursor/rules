@@ -1,0 +1,80 @@
+# Server Documentation Rules
+
+## Documentation Reference Guidelines
+- ALWAYS check relevant documentation in `server/docs/` before making code changes
+- Reference `server/docs/specs/architecture.md` for architectural decisions
+- Check `server/docs/api/` for API design patterns and existing endpoints
+- Consult `server/docs/specs/database-schema.md` for data model changes
+- Review `server/docs/specs/security-specs.md` for security implementations
+
+## Documentation Update Requirements
+When making code changes, ALWAYS update the corresponding documentation:
+
+### API Development
+- Update `server/docs/api/v1/endpoints.md` when adding/modifying API endpoints
+- Update `server/docs/api/schemas/request-schemas.md` for request payload changes
+- Update `server/docs/api/schemas/response-schemas.md` for response format changes
+- Update `server/docs/api/schemas/error-responses.md` for new error handling
+
+### Authentication & Security
+- Update `server/docs/api/v1/authentication.md` for auth endpoint changes
+- Update `server/docs/specs/security-specs.md` for security implementation changes
+- Document new authentication flows, token management, or authorization logic
+
+### Feature Implementation
+- Update `server/docs/api/v1/mcq-management.md` for MCQ-related API changes
+- Update `server/docs/api/v1/user-management.md` for user-related API changes
+- Document new business logic, validation rules, and data processing
+
+### Database Changes
+- Update `server/docs/specs/database-schema.md` for schema modifications
+- Document new tables, relationships, indexes, and migrations
+- Update data model specifications and entity relationships
+
+### Architecture & Performance
+- Update `server/docs/specs/architecture.md` for structural changes
+- Update `server/docs/specs/performance-specs.md` for optimization changes
+- Document new patterns, middleware, or system design decisions
+
+### Deployment & Infrastructure
+- Update `server/docs/deployment/environment-setup.md` for environment changes
+- Update `server/docs/deployment/vercel.md` for deployment configuration changes
+- Update `server/docs/deployment/monitoring.md` for logging and monitoring changes
+
+## Code Review Checklist
+Before submitting any PR or code changes:
+1. ✅ Relevant documentation has been read and understood
+2. ✅ API documentation reflects all endpoint changes
+3. ✅ Database schema documentation is updated
+4. ✅ Security implications are documented
+5. ✅ Performance impact is documented
+6. ✅ Deployment changes are documented
+
+## API Documentation Standards
+- Document all request/response formats with examples
+- Include HTTP status codes and error scenarios
+- Provide curl examples for testing
+- Document authentication requirements
+- Update Postman collections in `server/docs/api/postman/`
+
+## Database Documentation Standards
+- Document all schema changes with migration scripts
+- Include entity relationship diagrams
+- Document data validation rules and constraints
+- Explain indexing strategies and performance considerations
+
+## File Monitoring
+Watch these critical files for documentation sync:
+- `server.js` and route files - triggers API documentation updates
+- Database migration files - triggers schema documentation updates
+- Middleware files - triggers architecture and security documentation updates
+- Configuration files - triggers deployment documentation updates
+- Package.json changes - triggers dependency and setup documentation updates
+
+## Documentation Quality Standards
+- Use clear, technical language appropriate for developers
+- Include practical examples and code snippets
+- Document both successful and error scenarios
+- Maintain API versioning in documentation structure
+- Keep documentation synchronized with actual implementation
+- Update changelog in `server/CHANGELOG.md` for significant changes using format: [YYYY-MM-DD] - Brief description
