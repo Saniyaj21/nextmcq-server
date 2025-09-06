@@ -12,6 +12,8 @@
   "author": "Saniyaj Mallik",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongoose": "^8.18.0",
+    "validator": "^13.15.15"
   }
 }
