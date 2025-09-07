@@ -204,3 +204,48 @@ SMPT_SERVICE=gmail
 SMPT_MAIL=your-gmail@gmail.com
 SMPT_PASSWORD=your-app-password
 ```
+
+## 3. Logout User
+
+### Request
+**URL**: `POST http://localhost:8080/api/auth/logout`
+
+**Headers**:
+```
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Body**: `(empty)`
+
+### Response
+
+**Success (200)**:
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+**Error - Missing Token (401)**:
+```json
+{
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+**Error - Invalid Token (401)**:
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token"
+}
+```
+
+### Notes
+- Requires valid JWT token in Authorization header
+- Clears the token from user document in database
+- Token becomes invalid after logout
+- Use the token received from verify-otp endpoint

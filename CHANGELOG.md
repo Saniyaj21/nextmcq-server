@@ -7,6 +7,12 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Added
+- Logout endpoint (POST /api/auth/logout) for token invalidation and session management
+- Server-side token verification and user token clearing in logout process
+
+### Changed
+- Enhanced authentication flow with proper logout functionality
 
 ## [#4] - Complete Authentication System Implementation
 - **BREAKING**: Implemented email-based OTP authentication system with JWT tokens
