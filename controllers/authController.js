@@ -209,6 +209,126 @@ export const logout = async (req, res) => {
 };
 
 /**
+ * Complete user onboarding
+ * POST /api/auth/complete-onboarding
+ */
+export const completeOnboarding = async (req, res) => {
+  try {
+    const { name, role, subjects } = req.body;
+
+    // Get user ID from JWT token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required'
+      });
+    }
+
+    const token = authHeader.substring(7);
+    let userId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      userId = decoded.userId;
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Validate required fields
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name is required'
+      });
+    }
+
+    if (!role || !['student', 'teacher'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role must be either student or teacher'
+      });
+    }
+
+    // Validate name
+    if (name.trim().length < 2 || name.trim().length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be between 2 and 50 characters'
+      });
+    }
+
+    // Validate subjects if provided
+    if (subjects && (!Array.isArray(subjects) || subjects.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one subject is required'
+      });
+    }
+
+    // Institute field is now optional
+
+    // Update user profile
+    const updateData = {
+      name: name.trim(),
+      role,
+      isProfileComplete: true
+    };
+
+    if (subjects && subjects.length > 0) {
+      updateData.subjects = subjects.filter(subject => subject && subject.trim()).map(subject => subject.trim());
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    );
+
+    // Generate new token with updated user info
+    const newToken = generateJWTToken(userId);
+
+    // Update token in user document
+    await User.findByIdAndUpdate(userId, { token: newToken });
+
+    res.status(200).json({
+      success: true,
+      message: 'Onboarding completed successfully',
+      data: {
+        token: newToken,
+        user: {
+          _id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          subjects: updatedUser.subjects,
+          isProfileComplete: updatedUser.isProfileComplete
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Complete Onboarding Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete onboarding',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
  * Helper function to generate JWT token
  */
 function generateJWTToken(userId) {

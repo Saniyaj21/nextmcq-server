@@ -1,6 +1,7 @@
 import express from 'express';
 import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
+import instituteRoutes from './routes/institutes.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -18,6 +19,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/institutes', instituteRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
