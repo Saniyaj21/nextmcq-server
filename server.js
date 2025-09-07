@@ -1,5 +1,6 @@
 import express from 'express';
 import connectDB from './config/database.js';
+import authRoutes from './routes/auth.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -14,6 +15,9 @@ connectDB();
 
 // Middleware
 app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
