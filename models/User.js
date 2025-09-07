@@ -4,10 +4,6 @@ const userSchema = new mongoose.Schema({
   // Basic Information
   name: {
     type: String,
-    required: [true, 'Name is required'],
-    trim: true,
-    minlength: [2, 'Name must be at least 2 characters long'],
-    maxlength: [50, 'Name cannot exceed 50 characters']
   },
   
   email: {
@@ -22,8 +18,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['student', 'teacher'],
-    default: 'student',
-    required: true
+    default: 'student'
   },
   
   // Academic Information
@@ -41,14 +36,44 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  
+  // Authentication fields
+  otp: {
+    type: String,
+    default: null
+  },
+  
+  otpExpiry: {
+    type: Date,
+    default: null
+  },
+
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  
+  lastLoginAt: {
+    type: Date
+  },
+  
+  // Profile completion status
+  isProfileComplete: {
+    type: Boolean,
+    default: false
+  },
+  
+  token: {
+    type: String,
+    default: null
+  },
+
   
 }, {
   timestamps: true
 });
 
-// Indexes for better query performance
-userSchema.index({ role: 1 });
 
 // Instance methods
 userSchema.methods.isTeacher = function() {
@@ -58,6 +83,42 @@ userSchema.methods.isTeacher = function() {
 userSchema.methods.isStudent = function() {
   return this.role === 'student';
 };
+
+// OTP related methods
+userSchema.methods.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  this.otp = otp;
+  this.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+  return otp;
+};
+
+userSchema.methods.isOTPValid = function(enteredOTP) {
+  return this.otp === enteredOTP && this.otpExpiry > new Date();
+};
+
+userSchema.methods.clearOTP = function() {
+  this.otp = null;
+  this.otpExpiry = null;
+  return this.save();
+};
+
+userSchema.methods.verifyEmail = function() {
+  this.isEmailVerified = true;
+  this.clearOTP();
+  return this.save();
+};
+
+userSchema.methods.updateLoginInfo = function() {
+  this.lastLoginAt = new Date();
+  return this.save();
+};
+
+userSchema.methods.completeProfile = function(profileData) {
+  Object.assign(this, profileData);
+  this.isProfileComplete = true;
+  return this.save();
+};
+
 
 // Static methods
 userSchema.statics.findByEmail = function(email) {
