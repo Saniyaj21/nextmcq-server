@@ -23,8 +23,9 @@ const userSchema = new mongoose.Schema({
   
   // Academic Information
   institute: {
-    type: String,
-    trim: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Institute',
+    required: false
   },
   
   subjects: [{
@@ -119,15 +120,23 @@ userSchema.methods.completeProfile = function(profileData) {
   return this.save();
 };
 
+// Institute methods removed - institute field is now optional
+
 
 // Static methods
 userSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
+// findByEmailWithInstitute method removed - institute no longer required
+
 userSchema.statics.findByRole = function(role) {
   return this.find({ role });
 };
+
+// Institute-related static methods removed
+
+// Institute count middleware removed - no longer needed
 
 const User = mongoose.model('User', userSchema);
 
