@@ -3,15 +3,20 @@ import {
   sendOTP,
   verifyOTP,
   logout,
-  completeOnboarding
+  completeOnboarding,
+  getProfile
 } from '../controllers/authController.js';
+import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// Authentication routes
+// Public authentication routes (no middleware required)
 router.post('/send-otp', sendOTP);                    // POST /api/auth/send-otp - Send OTP to email
 router.post('/verify-otp', verifyOTP);                // POST /api/auth/verify-otp - Verify OTP and get JWT
-router.post('/complete-onboarding', completeOnboarding); // POST /api/auth/complete-onboarding - Complete user onboarding
-router.post('/logout', logout);                       // POST /api/auth/logout - Logout and invalidate token
+
+// Protected routes (require authentication)
+router.post('/complete-onboarding', authenticateUser, completeOnboarding); // POST /api/auth/complete-onboarding - Complete user onboarding
+router.post('/logout', authenticateUser, logout);                         // POST /api/auth/logout - Logout and invalidate token
+router.get('/profile', authenticateUser, getProfile);                     // GET /api/auth/profile - Get current user profile
 
 export default router;

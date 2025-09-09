@@ -162,34 +162,12 @@ export const verifyOTP = async (req, res) => {
 /**
  * Logout user and invalidate token
  * POST /api/auth/logout
+ * Requires: authenticateUser middleware
  */
 export const logout = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access token required'
-      });
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify and decode token to get user ID
-    let userId;
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      userId = decoded.userId;
-    } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
-
-    // Clear the token from user document
-    await User.findByIdAndUpdate(userId, {
+    // Clear the token from user document (user comes from middleware)
+    await User.findByIdAndUpdate(req.userId, {
       $unset: { token: 1 }
     });
 
@@ -211,40 +189,15 @@ export const logout = async (req, res) => {
 /**
  * Complete user onboarding
  * POST /api/auth/complete-onboarding
+ * Requires: authenticateUser middleware
  */
 export const completeOnboarding = async (req, res) => {
   try {
     const { name, role, subjects } = req.body;
-
-    // Get user ID from JWT token
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access token required'
-      });
-    }
-
-    const token = authHeader.substring(7);
-    let userId;
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      userId = decoded.userId;
-    } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
-
-    // Find the user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+    
+    // User comes from middleware
+    const user = req.user;
+    const userId = req.userId;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -323,6 +276,47 @@ export const completeOnboarding = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to complete onboarding',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Get current user profile
+ * GET /api/auth/profile
+ * Requires: authenticateUser middleware
+ */
+export const getProfile = async (req, res) => {
+  try {
+    // Get fresh user data with all profile fields (exclude sensitive data)
+    const user = await User.findById(req.userId).select('-otp -otpExpiry -token');
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile retrieved successfully',
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name || '',
+          email: user.email,
+          role: user.role || 'student',
+          subjects: user.subjects || [],
+          institute: user.institute,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
+          lastLoginAt: user.lastLoginAt,
+          isProfileComplete: user.isProfileComplete,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get Profile Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

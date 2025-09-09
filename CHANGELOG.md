@@ -8,11 +8,22 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+- Authentication middleware (server/middlewares/auth.js) for centralized JWT verification
+- Role-based authorization middleware for protecting routes by user role
+- GET /api/auth/profile endpoint for retrieving complete user profile data
 - Logout endpoint (POST /api/auth/logout) for token invalidation and session management
 - Server-side token verification and user token clearing in logout process
 
 ### Changed
+- Refactored auth controllers to use authentication middleware (removed duplicate JWT verification code)
 - Enhanced authentication flow with proper logout functionality
+- Applied authentication and role-based authorization to protected routes
+- Banner and test creation now require teacher role authorization
+
+### Improved
+- Code maintainability by centralizing authentication logic
+- Security by adding role-based access control
+- Error handling consistency across protected endpoints
 
 ## [#4] - Complete Authentication System Implementation
 - **BREAKING**: Implemented email-based OTP authentication system with JWT tokens
