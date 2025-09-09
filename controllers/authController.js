@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { sendEmail } from '../utils/sendMail.js';
+import { REWARDS } from '../constants/rewards.js';
 
 /**
  * Send OTP to email address
@@ -193,7 +194,7 @@ export const logout = async (req, res) => {
  */
 export const completeOnboarding = async (req, res) => {
   try {
-    const { name, role, subjects } = req.body;
+    const { name, role, subjects, referralCode } = req.body;
     
     // User comes from middleware
     const user = req.user;
@@ -232,12 +233,46 @@ export const completeOnboarding = async (req, res) => {
 
     // Institute field is now optional
 
+    // Validate referral code if provided
+    let referrer = null;
+    if (referralCode && referralCode.trim()) {
+      referrer = await User.findByReferralCode(referralCode.trim().toUpperCase());
+      if (!referrer) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid referral code'
+        });
+      }
+      if (!referrer.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Referral code is no longer active'
+        });
+      }
+      if (referrer._id.toString() === userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot use your own referral code'
+        });
+      }
+    }
+
+    // Get current user and generate referral code
+    const currentUser = await User.findById(userId);
+    const userReferralCode = currentUser.generateReferralCode();
+
     // Update user profile
     const updateData = {
       name: name.trim(),
       role,
-      isProfileComplete: true
+      isProfileComplete: true,
+      referralCode: userReferralCode
     };
+
+    // Add referrer if referral code was provided
+    if (referrer) {
+      updateData.referredBy = referrer._id;
+    }
 
     if (subjects && subjects.length > 0) {
       updateData.subjects = subjects.filter(subject => subject && subject.trim()).map(subject => subject.trim());
@@ -254,6 +289,33 @@ export const completeOnboarding = async (req, res) => {
 
     // Update token in user document
     await User.findByIdAndUpdate(userId, { token: newToken });
+
+    // Process referral rewards if referrer exists
+    if (referrer) {
+      try {
+        const referrerRewards = REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER;
+        const refereeRewards = REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE;
+
+        // Award rewards to referrer
+        await referrer.addRewards(
+          referrerRewards.coins,
+          referrerRewards.xp,
+          'referral_referrer'
+        );
+
+        // Award rewards to referee (updated user)
+        await updatedUser.addRewards(
+          refereeRewards.coins,
+          refereeRewards.xp,
+          'referral_referee'
+        );
+
+        console.log(`Referral processed: ${referrer.email} referred ${updatedUser.email}`);
+      } catch (error) {
+        console.error('Error processing referral rewards:', error);
+        // Don't fail onboarding if referral processing fails
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -306,6 +368,11 @@ export const getProfile = async (req, res) => {
           isEmailVerified: user.isEmailVerified,
           lastLoginAt: user.lastLoginAt,
           isProfileComplete: user.isProfileComplete,
+          referralCode: user.referralCode,
+          rewards: {
+            ...user.rewards,
+            accuracy: user.calculateAccuracy()
+          },
           createdAt: user.createdAt,
           updatedAt: user.updatedAt
         }
