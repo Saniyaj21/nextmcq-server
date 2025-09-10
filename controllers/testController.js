@@ -45,3 +45,41 @@ export const createTest = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to create test' });
   }
 };
+
+export const updateTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const { title, description, subject, chapter, difficulty, timeLimit, isPublic } = req.body;
+    const userId = req?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+    
+    // Find test and verify ownership
+    const test = await Test.findOne({ _id: testId, createdBy: userId });
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found or access denied' });
+    }
+    
+    // Update test
+    const updatedTest = await Test.findByIdAndUpdate(
+      testId,
+      { 
+        title, 
+        description, 
+        subject, 
+        chapter, 
+        difficulty, 
+        timeLimit, 
+        isPublic 
+      },
+      { new: true }
+    );
+    
+    res.status(200).json({ success: true, data: updatedTest });
+  } catch (error) {
+    console.error('Update test error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update test' });
+  }
+};
