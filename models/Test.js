@@ -19,11 +19,6 @@ const testSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
-    difficulty: {
-      type: String,
-      enum: ['easy', 'medium', 'hard'],
-      default: 'easy'
-    },
     timeLimit: {
       type: Number,
       default: 0
@@ -42,6 +37,15 @@ const testSchema = new mongoose.Schema({
       min: 0,
       max: 5
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Please provide the creator']
+    },
+    attemptedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     createdAt: {
       type: Date,
       default: Date.now
