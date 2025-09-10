@@ -219,9 +219,30 @@ export const calculateTestRewards = (isFirstAttempt, accuracy) => {
 
 // Helper function to calculate ranking score
 export const calculateRankingScore = (totalTests, correctAnswers, totalQuestions) => {
-  const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
   return (totalTests * RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT) + 
          (accuracy * RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT);
+};
+
+// MongoDB aggregation pipeline for ranking score calculation
+export const getRankingScoreAggregation = () => {
+  return {
+    $add: [
+      { $multiply: ['$rewards.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
+      { 
+        $cond: {
+          if: { $eq: ['$rewards.totalQuestions', 0] },
+          then: 0,
+          else: { 
+            $multiply: [
+              { $round: [{ $multiply: [{ $divide: ['$rewards.correctAnswers', '$rewards.totalQuestions'] }, 100] }] },
+              RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
+            ]
+          }
+        }
+      }
+    ]
+  };
 };
 
 export default {
@@ -233,5 +254,6 @@ export default {
   ACCURACY_THRESHOLDS,
   getAccuracyTier,
   calculateTestRewards,
-  calculateRankingScore
+  calculateRankingScore,
+  getRankingScoreAggregation
 };

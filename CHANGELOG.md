@@ -7,6 +7,19 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Fixed
+- Critical ranking score calculation bug in MongoDB aggregation pipelines (getLeaderboard and getUserRanking methods)
+- Fixed double multiplication of accuracy weight causing incorrect ranking scores
+- Fixed accuracy rounding inconsistency between method calculation and aggregation pipeline
+- Ranking scores now correctly calculate as (Total Tests × 10) + (Accuracy % × 10) with consistent rounding
+
+### Refactored
+- Implemented single source of truth for ranking score calculation
+- Centralized ranking score logic in `calculateRankingScore()` function in rewards.js
+- Created `getRankingScoreAggregation()` helper for MongoDB aggregation pipelines
+- Updated User model methods to use centralized calculation functions
+- Eliminated code duplication and potential inconsistencies in ranking calculations
+
 ### Added
 - Complete ranking system with comprehensive API endpoints (/api/ranking/leaderboard, /api/ranking/user-rank, /api/ranking/stats)
 - Ranking controller (server/controllers/rankingController.js) with leaderboard aggregation and user rank calculation

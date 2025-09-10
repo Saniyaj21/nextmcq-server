@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { LEVEL_SYSTEM, RANKING_SYSTEM } from '../constants/rewards.js';
+import { LEVEL_SYSTEM, RANKING_SYSTEM, calculateRankingScore, getRankingScoreAggregation } from '../constants/rewards.js';
 
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -257,8 +257,11 @@ userSchema.methods.calculateAccuracy = function() {
 };
 
 userSchema.methods.calculateRankingScore = function() {
-  return (this.rewards.totalTests * RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT) + 
-         (this.calculateAccuracy() * RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT);
+  return calculateRankingScore(
+    this.rewards.totalTests, 
+    this.rewards.correctAnswers, 
+    this.rewards.totalQuestions
+  );
 };
 
 // Institute methods removed - institute field is now optional
@@ -319,28 +322,7 @@ userSchema.statics.getLeaderboard = function(category = 'global', limit = 100, i
   pipeline.push(
     {
       $addFields: {
-        rankingScore: {
-          $add: [
-            { $multiply: ['$rewards.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-            { 
-              $multiply: [
-                { 
-                  $cond: {
-                    if: { $eq: ['$rewards.totalQuestions', 0] },
-                    then: 0,
-                    else: { 
-                      $multiply: [
-                        { $divide: ['$rewards.correctAnswers', '$rewards.totalQuestions'] },
-                        RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
-                      ]
-                    }
-                  }
-                },
-                RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
-              ]
-            }
-          ]
-        }
+        rankingScore: getRankingScoreAggregation()
       }
     },
     { $sort: { rankingScore: -1 } },
@@ -403,28 +385,7 @@ userSchema.statics.getUserRanking = async function(userId, category = 'global') 
   pipeline.push(
     {
       $addFields: {
-        rankingScore: {
-          $add: [
-            { $multiply: ['$rewards.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-            { 
-              $multiply: [
-                { 
-                  $cond: {
-                    if: { $eq: ['$rewards.totalQuestions', 0] },
-                    then: 0,
-                    else: { 
-                      $multiply: [
-                        { $divide: ['$rewards.correctAnswers', '$rewards.totalQuestions'] },
-                        RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
-                      ]
-                    }
-                  }
-                },
-                RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
-              ]
-            }
-          ]
-        }
+        rankingScore: getRankingScoreAggregation()
       }
     },
     { $sort: { rankingScore: -1 } },
