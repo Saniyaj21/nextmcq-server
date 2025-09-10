@@ -8,6 +8,15 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+- Complete ranking system with comprehensive API endpoints (/api/ranking/leaderboard, /api/ranking/user-rank, /api/ranking/stats)
+- Ranking controller (server/controllers/rankingController.js) with leaderboard aggregation and user rank calculation
+- Ranking routes (server/routes/ranking.js) with public and protected endpoints
+- Enhanced User model methods for ranking calculation (calculateRankingScore, getLeaderboard, getUserRanking)
+- Platform statistics API for global performance metrics and user counts
+- Pagination support for leaderboards with configurable limits and categories
+- Ranking score formula based on tests completed and accuracy percentage
+- User rank tracking with nearby users functionality for competitive engagement
+- Category-based leaderboards (global, students, teachers) with proper filtering
 - Authentication middleware (server/middlewares/auth.js) for centralized JWT verification
 - Role-based authorization middleware for protecting routes by user role
 - GET /api/auth/profile endpoint for retrieving complete user profile data
@@ -24,6 +33,7 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - Code maintainability by centralizing authentication logic
 - Security by adding role-based access control
 - Error handling consistency across protected endpoints
+- Performance optimization for ranking calculations using MongoDB aggregation pipelines
 
 ## [#4] - Complete Authentication System Implementation
 - **BREAKING**: Implemented email-based OTP authentication system with JWT tokens
