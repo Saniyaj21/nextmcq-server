@@ -5,7 +5,8 @@ import {
   logout,
   completeOnboarding,
   getProfile,
-  updateProfile
+  updateProfile,
+  searchUsers
 } from '../controllers/authController.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
@@ -20,5 +21,6 @@ router.post('/complete-onboarding', authenticateUser, completeOnboarding); // PO
 router.post('/logout', authenticateUser, logout);                         // POST /api/auth/logout - Logout and invalidate token
 router.get('/profile', authenticateUser, getProfile);                     // GET /api/auth/profile - Get current user profile
 router.post('/update-profile', authenticateUser, updateProfile);           // POST /api/auth/update-profile - Update user profile
+router.get('/search-users', searchUsers);                                // GET /api/auth/search-users - Search users by name/email
 
 export default router;

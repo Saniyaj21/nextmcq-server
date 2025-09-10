@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+/**
+ * Test Schema
+ * 
+ * - allowedUsers: Array of user ObjectIds who are allowed to access the test (when isPublic is false)
+ * - pendingRequests: Array of user ObjectIds who have requested access but are not yet allowed (when isPublic is false)
+ * 
+ * Note: These arrays are only relevant when isPublic is false. 
+ * Application logic should ensure they are ignored or empty when isPublic is true.
+ * 
+ * Example usage:
+ *   - If isPublic === false, allowedUsers and pendingRequests are used for access control.
+ *   - If isPublic === true, all users can access, and allowedUsers/pendingRequests should be empty or ignored.
+ */
 const testSchema = new mongoose.Schema({
     title: {
       type: String,
@@ -27,6 +40,16 @@ const testSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+    // Only relevant when isPublic is false
+    allowedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    // Only relevant when isPublic is false
+    pendingRequests: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     attemptsCount: {
       type: Number,
       default: 0

@@ -4,11 +4,9 @@ import { authenticateUser, authorizeRoles } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// Public routes (for students to view available tests)
-router.get('/get-tests', getTests);
-
-// Protected routes (require authentication and teacher role)
-router.post('/create-test', authenticateUser, createTest);
+// Protected routes (require authentication)
+router.get('/get-tests', authenticateUser, getTests);        // GET /api/test/get-tests - Get user's tests
+router.post('/create-test', authenticateUser, createTest);   // POST /api/test/create-test - Create new test
 // router.post('/create-test', authenticateUser, authorizeRoles('teacher'), createTest);
 
 export default router;

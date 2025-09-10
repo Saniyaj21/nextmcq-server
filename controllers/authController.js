@@ -478,6 +478,58 @@ export const updateProfile = async (req, res) => {
 };
 
 /**
+ * Search users by name or email
+ * GET /api/auth/search-users?q=searchTerm
+ */
+export const searchUsers = async (req, res) => {
+  try {
+    const { q: searchTerm, limit = 20 } = req.query;
+    
+    const limitNum = Math.min(parseInt(limit) || 20, 50); // Max 50 results
+
+    // If no search term, return empty result
+    if (!searchTerm || !searchTerm.trim()) {
+      return res.status(200).json({
+        success: true,
+        message: 'Please provide a search term',
+        data: {
+          users: [],
+          count: 0
+        }
+      });
+    }
+
+    // Validate minimum search length
+    if (searchTerm.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters long'
+      });
+    }
+
+    const users = await User.searchUsers(searchTerm.trim(), limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: 'Search completed successfully',
+      data: {
+        searchTerm: searchTerm.trim(),
+        users,
+        count: users.length,
+        hasMore: users.length === limitNum // Indicates if there might be more results
+      }
+    });
+  } catch (error) {
+    console.error('Search Users Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
  * Helper function to generate JWT token
  */
 function generateJWTToken(userId) {

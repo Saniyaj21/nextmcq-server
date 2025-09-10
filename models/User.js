@@ -412,6 +412,25 @@ userSchema.statics.getUserRanking = async function(userId, category = 'global') 
 
 // Institute count middleware removed - no longer needed
 
+// Search users by name or email
+userSchema.statics.searchUsers = function(searchTerm, limit = 30) {
+  const regex = new RegExp(searchTerm, 'i');
+  return this.find({
+    $and: [
+      { isActive: { $ne: false } }, // Only active users
+      {
+        $or: [
+          { name: regex },
+          { email: regex }
+        ]
+      }
+    ]
+  })
+  .select('name email')
+  .limit(limit)
+  .sort({ name: 1 });
+};
+
 const User = mongoose.model('User', userSchema);
 
 export default User;
