@@ -398,7 +398,7 @@ export const getProfile = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const { institute } = req.body;
+    const { institute, subjects } = req.body;
     const userId = req.userId;
 
     // Get current user
@@ -413,6 +413,24 @@ export const updateProfile = async (req, res) => {
     // Update institute if provided
     if (institute) {
       user.institute = institute;
+    }
+
+    // Update subjects if provided
+    if (subjects) {
+      // Validate subjects array
+      if (!Array.isArray(subjects)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Subjects must be an array'
+        });
+      }
+
+      // Filter out empty subjects and trim whitespace
+      const validSubjects = subjects
+        .map(subject => subject.trim())
+        .filter(subject => subject.length > 0);
+
+      user.subjects = validSubjects;
     }
 
     // Save changes
