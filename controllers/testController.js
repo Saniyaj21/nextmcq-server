@@ -83,3 +83,32 @@ export const updateTest = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to update test' });
   }
 };
+
+export const deleteTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const userId = req?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+    
+    // Find test and verify ownership
+    const test = await Test.findOne({ _id: testId, createdBy: userId });
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found or access denied' });
+    }
+    
+    // Delete test
+    await Test.findByIdAndDelete(testId);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: 'Test deleted successfully',
+      data: { deletedTestId: testId }
+    });
+  } catch (error) {
+    console.error('Delete test error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete test' });
+  }
+};
