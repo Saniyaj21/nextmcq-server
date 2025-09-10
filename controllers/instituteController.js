@@ -247,14 +247,24 @@ export const searchInstitutes = async (req, res) => {
   try {
     const { q: searchTerm, limit = 20 } = req.query;
 
+    const limitNum = Math.min(parseInt(limit) || 20, 50); // Max 50 results
+
+    // If no search term, return all institutes (with limit)
     if (!searchTerm || !searchTerm.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Search term is required'
+      const institutes = await Institute.find({ isActive: true })
+        .select('name location type studentCount teacherCount')
+        .sort({ name: 1 })
+        .limit(limitNum);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Institutes retrieved successfully',
+        data: {
+          institutes,
+          count: institutes.length
+        }
       });
     }
-
-    const limitNum = Math.min(parseInt(limit) || 20, 50); // Max 50 results
     const institutes = await Institute.searchInstitutes(searchTerm.trim(), limitNum);
 
     res.status(200).json({

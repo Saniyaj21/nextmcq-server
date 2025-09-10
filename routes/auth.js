@@ -4,7 +4,8 @@ import {
   verifyOTP,
   logout,
   completeOnboarding,
-  getProfile
+  getProfile,
+  updateProfile
 } from '../controllers/authController.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
@@ -18,5 +19,6 @@ router.post('/verify-otp', verifyOTP);                // POST /api/auth/verify-o
 router.post('/complete-onboarding', authenticateUser, completeOnboarding); // POST /api/auth/complete-onboarding - Complete user onboarding
 router.post('/logout', authenticateUser, logout);                         // POST /api/auth/logout - Logout and invalidate token
 router.get('/profile', authenticateUser, getProfile);                     // GET /api/auth/profile - Get current user profile
+router.post('/update-profile', authenticateUser, updateProfile);           // POST /api/auth/update-profile - Update user profile
 
 export default router;

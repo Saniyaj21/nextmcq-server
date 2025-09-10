@@ -351,7 +351,9 @@ export const completeOnboarding = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     // Get fresh user data with all profile fields (exclude sensitive data)
-    const user = await User.findById(req.userId).select('-otp -otpExpiry -token');
+    const user = await User.findById(req.userId)
+      .select('-otp -otpExpiry -token')
+      .populate('institute', 'name location type');
 
     res.status(200).json({
       success: true,
@@ -384,6 +386,74 @@ export const getProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Update user profile
+ * POST /api/auth/update-profile
+ * Requires: authenticateUser middleware
+ */
+export const updateProfile = async (req, res) => {
+  try {
+    const { institute } = req.body;
+    const userId = req.userId;
+
+    // Get current user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update institute if provided
+    if (institute) {
+      user.institute = institute;
+    }
+
+    // Save changes
+    await user.save();
+
+    // Get updated user with populated institute
+    const updatedUser = await User.findById(userId)
+      .select('-otp -otpExpiry -token')
+      .populate('institute', 'name location type');
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          _id: updatedUser._id,
+          name: updatedUser.name || '',
+          email: updatedUser.email,
+          role: updatedUser.role || 'student',
+          subjects: updatedUser.subjects || [],
+          institute: updatedUser.institute,
+          isActive: updatedUser.isActive,
+          isEmailVerified: updatedUser.isEmailVerified,
+          lastLoginAt: updatedUser.lastLoginAt,
+          isProfileComplete: updatedUser.isProfileComplete,
+          referralCode: updatedUser.referralCode,
+          rewards: {
+            ...updatedUser.rewards,
+            accuracy: updatedUser.calculateAccuracy()
+          },
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Update Profile Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
