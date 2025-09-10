@@ -152,6 +152,14 @@ export const RANKING_SYSTEM = {
     STUDENTS: 'students', 
     TEACHERS: 'teachers',
     INSTITUTE: 'institute'
+  },
+  
+  // Category labels for display
+  CATEGORY_LABELS: {
+    global: 'Global Rankings',
+    students: 'Student Rankings',
+    teachers: 'Teacher Rankings',
+    institute: 'Institute Rankings'
   }
 };
 

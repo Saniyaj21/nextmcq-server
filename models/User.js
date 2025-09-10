@@ -279,18 +279,44 @@ userSchema.statics.findByReferralCode = function(code) {
   return this.findOne({ referralCode: code });
 };
 
-userSchema.statics.getLeaderboard = function(category = 'global', limit = 100) {
-  const matchStage = {};
-  
-  // Add category-specific filters
-  if (category === 'students') {
-    matchStage.role = 'student';
-  } else if (category === 'teachers') {
-    matchStage.role = 'teacher';
+userSchema.statics.getLeaderboard = function(category = 'global', limit = 100, instituteId = null) {
+  const pipeline = [];
+
+  // First stage: Match active users
+  pipeline.push({
+    $match: {
+      isActive: true
+    }
+  });
+
+  // Second stage: Lookup institute if needed
+  if (category === 'institute' && instituteId) {
+    const instituteObjectId = new mongoose.Types.ObjectId(instituteId);
+    console.log('Adding institute filter:', {
+      category,
+      instituteId,
+      instituteObjectId
+    });
+    pipeline.push({
+      $match: {
+        institute: instituteObjectId
+      }
+    });
   }
-  
-  return this.aggregate([
-    { $match: matchStage },
+
+  // Third stage: Role-based filtering
+  if (category === 'students') {
+    pipeline.push({
+      $match: { role: 'student' }
+    });
+  } else if (category === 'teachers') {
+    pipeline.push({
+      $match: { role: 'teacher' }
+    });
+  }
+
+  // Add the rest of the pipeline stages
+  pipeline.push(
     {
       $addFields: {
         rankingScore: {
@@ -324,6 +350,7 @@ userSchema.statics.getLeaderboard = function(category = 'global', limit = 100) {
         name: 1,
         email: 1,
         role: 1,
+        institute: 1,
         'rewards.coins': 1,
         'rewards.xp': 1,
         'rewards.level': 1,
@@ -333,20 +360,47 @@ userSchema.statics.getLeaderboard = function(category = 'global', limit = 100) {
         rankingScore: 1
       }
     }
-  ]);
+  );
+
+  return this.aggregate(pipeline);
 };
 
-userSchema.statics.getUserRanking = function(userId, category = 'global') {
-  const matchStage = {};
-  
-  if (category === 'students') {
-    matchStage.role = 'student';
-  } else if (category === 'teachers') {
-    matchStage.role = 'teacher';
+userSchema.statics.getUserRanking = async function(userId, category = 'global') {
+  const pipeline = [];
+
+  // First stage: Match active users
+  pipeline.push({
+    $match: {
+      isActive: true
+    }
+  });
+
+  // Handle institute category
+  if (category === 'institute') {
+    const user = await this.findById(userId).populate('institute');
+    if (!user?.institute?._id) {
+      return []; // Return empty result if no institute
+    }
+    pipeline.push({
+      $match: {
+        institute: new mongoose.Types.ObjectId(user.institute._id)
+      }
+    });
   }
-  
-  return this.aggregate([
-    { $match: matchStage },
+
+  // Add role-based filtering
+  if (category === 'students') {
+    pipeline.push({
+      $match: { role: 'student' }
+    });
+  } else if (category === 'teachers') {
+    pipeline.push({
+      $match: { role: 'teacher' }
+    });
+  }
+
+  // Add the rest of the pipeline stages
+  pipeline.push(
     {
       $addFields: {
         rankingScore: {
@@ -388,7 +442,9 @@ userSchema.statics.getUserRanking = function(userId, category = 'global') {
         score: '$users.rankingScore'
       }
     }
-  ]);
+  );
+
+  return this.aggregate(pipeline);
 };
 
 // Institute-related static methods removed

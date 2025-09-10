@@ -14,22 +14,106 @@ export const getLeaderboard = async (req, res) => {
       page = 1 
     } = req.query;
 
+  // Log request parameters
+  console.log('Received ranking request:', {
+    category,
+    limit,
+    page,
+    userId: req.userId,
+    url: req.url
+  });
+
     // Validate parameters
-    const validCategories = ['global', 'students', 'teachers'];
+    const validCategories = ['global', 'students', 'teachers', 'institute'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid category. Must be global, students, or teachers'
+        message: 'Invalid category. Must be global, students, teachers, or institute'
       });
+    }
+
+    // For institute category, user must be authenticated and have an institute
+    if (category === 'institute') {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required for institute rankings'
+        });
+      }
+
+      const user = await User.findById(req.userId).populate('institute');
+      if (!user?.institute?._id) {
+        return res.status(400).json({
+          success: false,
+          message: 'No institute found. Please join an institute to view institute rankings'
+        });
+      }
     }
 
     const limitNum = Math.min(parseInt(limit) || 50, 100); // Max 100 users per page
     const pageNum = Math.max(parseInt(page) || 1, 1);
     const skip = (pageNum - 1) * limitNum;
 
+    // Log request details
+    console.log('Ranking request:', {
+      category,
+      userId: req.userId,
+      page,
+      limit
+    });
+
     // Get leaderboard data
-    const leaderboard = await User.getLeaderboard(category, limitNum + skip);
+    let leaderboard;
+    if (category === 'institute') {
+      // Get user with institute
+      const user = await User.findById(req.userId).populate('institute');
+      
+      // Check if user has an institute
+      if (!user?.institute?._id) {
+        console.log('No institute found for user:', req.userId);
+        return res.status(400).json({
+          success: false,
+          message: 'No institute found for user'
+        });
+      }
+
+      // Debug log institute details
+      console.log('Fetching institute leaderboard:', {
+        userId: req.userId,
+        instituteId: user.institute._id,
+        instituteName: user.institute.name
+      });
+
+      // Get leaderboard with institute filter
+      leaderboard = await User.getLeaderboard(
+        category,
+        limitNum + skip,
+        user.institute._id.toString()
+      );
+
+      // Log institute results
+      console.log('Institute leaderboard results:', {
+        instituteId: user.institute._id,
+        resultCount: leaderboard.length
+      });
+    } else {
+      leaderboard = await User.getLeaderboard(category, limitNum + skip);
+      console.log(`${category} leaderboard results:`, {
+        resultCount: leaderboard.length
+      });
+    }
     
+    // Debug log the raw leaderboard results
+    console.log('Raw leaderboard results:', {
+      category,
+      totalResults: leaderboard.length,
+      results: leaderboard.map(user => ({
+        id: user._id,
+        name: user.name,
+        institute: user.institute
+      }))
+    });
+
     // Apply pagination
     const paginatedLeaderboard = leaderboard.slice(skip, skip + limitNum);
 
@@ -40,10 +124,32 @@ export const getLeaderboard = async (req, res) => {
     }));
 
     // Get total count for pagination info
-    const totalUsers = await User.countDocuments(
-      category === 'students' ? { role: 'student' } :
-      category === 'teachers' ? { role: 'teacher' } : {}
-    );
+    let totalUsers;
+    if (category === 'institute') {
+      const user = await User.findById(req.userId).populate('institute');
+      if (!user?.institute?._id) {
+        return res.status(400).json({
+          success: false,
+          message: 'No institute found for user'
+        });
+      }
+      // Only count active users in the same institute
+      totalUsers = await User.countDocuments({ 
+        institute: user.institute._id,
+        isActive: true
+      });
+
+      // If no users found in institute (should at least have the current user)
+      if (totalUsers === 0) {
+        totalUsers = 1; // Current user should be counted
+      }
+    } else {
+      totalUsers = await User.countDocuments(
+        category === 'students' ? { role: 'student', isActive: true } :
+        category === 'teachers' ? { role: 'teacher', isActive: true } : 
+        { isActive: true }
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -83,12 +189,23 @@ export const getUserRank = async (req, res) => {
     const userId = req.userId;
 
     // Validate category
-    const validCategories = ['global', 'students', 'teachers'];
+    const validCategories = ['global', 'students', 'teachers', 'institute'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid category. Must be global, students, or teachers'
+        message: 'Invalid category. Must be global, students, teachers, or institute'
       });
+    }
+
+    // For institute category, verify user has an institute
+    if (category === 'institute') {
+      const user = await User.findById(userId).populate('institute');
+      if (!user?.institute?._id) {
+        return res.status(400).json({
+          success: false,
+          message: 'No institute found. Please join an institute to view institute rankings'
+        });
+      }
     }
 
     // Get user's rank
