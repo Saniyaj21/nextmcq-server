@@ -5,6 +5,7 @@ import instituteRoutes from './routes/institutes.js';
 import bannerRoutes from './routes/banner.js';
 import testRoutes from './routes/test.js';
 import rankingRoutes from './routes/ranking.js';
+import userRoutes from './routes/user.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/institutes', instituteRoutes);
 app.use('/api/banner', bannerRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/ranking', rankingRoutes);
+app.use('/api/user', userRoutes);
 // Basic route
 app.get('/', (req, res) => {
     res.json({
