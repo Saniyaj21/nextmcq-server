@@ -133,48 +133,7 @@ const userSchema = new mongoose.Schema({
 
 
 // Instance methods
-userSchema.methods.isTeacher = function() {
-  return this.role === 'teacher';
-};
 
-userSchema.methods.isStudent = function() {
-  return this.role === 'student';
-};
-
-// OTP related methods
-userSchema.methods.generateOTP = function() {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-  this.otp = otp;
-  this.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-  return otp;
-};
-
-userSchema.methods.isOTPValid = function(enteredOTP) {
-  return this.otp === enteredOTP && this.otpExpiry > new Date();
-};
-
-userSchema.methods.clearOTP = function() {
-  this.otp = null;
-  this.otpExpiry = null;
-  return this.save();
-};
-
-userSchema.methods.verifyEmail = function() {
-  this.isEmailVerified = true;
-  this.clearOTP();
-  return this.save();
-};
-
-userSchema.methods.updateLoginInfo = function() {
-  this.lastLoginAt = new Date();
-  return this.save();
-};
-
-userSchema.methods.completeProfile = function(profileData) {
-  Object.assign(this, profileData);
-  this.isProfileComplete = true;
-  return this.save();
-};
 
 // Rewards System Methods
 userSchema.methods.generateReferralCode = function() {
@@ -197,57 +156,11 @@ userSchema.methods.calculateLevel = function() {
 userSchema.methods.addRewards = function(coins = 0, xp = 0, source = 'unknown') {
   this.rewards.coins += coins;
   this.rewards.xp += xp;
-  
+
   // Update level based on new XP
   const newLevel = this.calculateLevel();
   this.rewards.level = newLevel;
-  
-  return this.save();
-};
 
-userSchema.methods.spendCoins = function(amount) {
-  if (this.rewards.coins < amount) {
-    throw new Error('Insufficient coins');
-  }
-  this.rewards.coins -= amount;
-  return this.save();
-};
-
-userSchema.methods.updateTestStats = function(correctAnswers, totalQuestions, isFirstAttempt = false) {
-  if (isFirstAttempt) {
-    this.rewards.totalTests += 1;
-  }
-  this.rewards.correctAnswers += correctAnswers;
-  this.rewards.totalQuestions += totalQuestions;
-  return this.save();
-};
-
-userSchema.methods.updateLoginStreak = function() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const lastLogin = this.rewards.lastLoginDate;
-  
-  if (!lastLogin) {
-    // First login
-    this.rewards.loginStreak = 1;
-  } else {
-    const lastLoginDate = new Date(lastLogin);
-    lastLoginDate.setHours(0, 0, 0, 0);
-    
-    const daysDiff = (today - lastLoginDate) / (1000 * 60 * 60 * 24);
-    
-    if (daysDiff === 1) {
-      // Consecutive day
-      this.rewards.loginStreak += 1;
-    } else if (daysDiff > 1) {
-      // Streak broken
-      this.rewards.loginStreak = 1;
-    }
-    // Same day login doesn't change streak
-  }
-  
-  this.rewards.lastLoginDate = today;
   return this.save();
 };
 
@@ -273,10 +186,6 @@ userSchema.statics.findByEmail = function(email) {
 };
 
 // findByEmailWithInstitute method removed - institute no longer required
-
-userSchema.statics.findByRole = function(role) {
-  return this.find({ role });
-};
 
 userSchema.statics.findByReferralCode = function(code) {
   return this.findOne({ referralCode: code });
