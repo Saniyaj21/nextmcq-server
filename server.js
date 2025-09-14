@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.js';
 import instituteRoutes from './routes/institutes.js';
 import bannerRoutes from './routes/banner.js';
 import testRoutes from './routes/test.js';
+import questionRoutes from './routes/question.js';
 import rankingRoutes from './routes/ranking.js';
 import userRoutes from './routes/user.js';
 import dotenv from 'dotenv';
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/institutes', instituteRoutes);
 app.use('/api/banner', bannerRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/question', questionRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/user', userRoutes);
 // Basic route

@@ -69,6 +69,10 @@ const testSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }],
+    questions: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Question'
+    }],
     createdAt: {
       type: Date,
       default: Date.now
