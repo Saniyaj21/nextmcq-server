@@ -222,7 +222,7 @@ export const getUserRank = async (req, res) => {
 
     // Get user's current data for display
     const currentUser = await User.findById(userId).select(
-      'name email role rewards.coins rewards.xp rewards.level rewards.totalTests rewards.correctAnswers rewards.totalQuestions'
+      'name email role rewards.coins rewards.xp rewards.level student.totalTests student.correctAnswers student.totalQuestions teacher.testsCreated teacher.averageRating teacher.totalAttempts'
     );
 
     if (!currentUser) {
@@ -250,8 +250,10 @@ export const getUserRank = async (req, res) => {
             email: currentUser.email,
             role: currentUser.role,
             rewards: {
-              ...currentUser.rewards,
-              accuracy
+              coins: currentUser.rewards.coins || 0,
+              xp: currentUser.rewards.xp || 0,
+              level: currentUser.calculateLevel(),
+              loginStreak: currentUser.rewards.loginStreak || 0
             },
             rankingScore
           }

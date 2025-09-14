@@ -39,11 +39,13 @@ export const getPublicProfile = async (req, res) => {
     // Calculate accuracy
     const accuracy = user.calculateAccuracy();
 
-    // Get user's global ranking
+    // Get user's global ranking using optimized approach
     let globalRank = null;
     let rankingScore = 0;
     try {
+      // Use getUserRanking for better performance - only gets the user's rank
       const rankResult = await User.getUserRanking(userId, 'global');
+
       if (rankResult && rankResult.length > 0) {
         globalRank = rankResult[0].rank;
         rankingScore = rankResult[0].score;
@@ -64,7 +66,7 @@ export const getPublicProfile = async (req, res) => {
       level: user.rewards.level,
       accuracy: accuracy,
       streak: user.rewards.loginStreak,
-      testsCompleted: user.rewards.totalTests,
+      testsCompleted: user.role === 'student' ? user.student.totalTests : user.teacher.testsCreated,
       globalRank: globalRank,
       rankingScore: rankingScore,
       memberSince: user.createdAt

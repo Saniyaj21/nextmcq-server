@@ -217,26 +217,38 @@ export const calculateTestRewards = (isFirstAttempt, accuracy) => {
   return { coins, xp };
 };
 
-// Helper function to calculate ranking score
-export const calculateRankingScore = (totalTests, correctAnswers, totalQuestions) => {
-  const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-  return (totalTests * RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT) + 
-         (accuracy * RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT);
-};
 
 // MongoDB aggregation pipeline for ranking score calculation
 export const getRankingScoreAggregation = () => {
   return {
     $add: [
-      { $multiply: ['$rewards.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-      { 
+      // Handle different roles with conditional logic
+      {
         $cond: {
-          if: { $eq: ['$rewards.totalQuestions', 0] },
-          then: 0,
-          else: { 
-            $multiply: [
-              { $round: [{ $multiply: [{ $divide: ['$rewards.correctAnswers', '$rewards.totalQuestions'] }, 100] }] },
-              RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
+          if: { $eq: ['$role', 'student'] },
+          then: {
+            // Student ranking: (totalTests * 10) + (accuracy * 10)
+            $add: [
+              { $multiply: ['$student.totalTests', 10] },
+              {
+                $cond: {
+                  if: { $eq: ['$student.totalQuestions', 0] },
+                  then: 0,
+                  else: {
+                    $multiply: [
+                      { $round: [{ $multiply: [{ $divide: ['$student.correctAnswers', '$student.totalQuestions'] }, 100] }] },
+                      10
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          else: {
+            // For teachers: (testsCreated * 10) + (totalAttempts * 10)
+            $add: [
+              { $multiply: ['$teacher.testsCreated', 10] },
+              { $multiply: ['$teacher.totalAttempts', 10] }
             ]
           }
         }
@@ -254,6 +266,5 @@ export default {
   ACCURACY_THRESHOLDS,
   getAccuracyTier,
   calculateTestRewards,
-  calculateRankingScore,
   getRankingScoreAggregation
 };

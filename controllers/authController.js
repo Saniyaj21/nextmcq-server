@@ -350,10 +350,28 @@ export const completeOnboarding = async (req, res) => {
  */
 export const getProfile = async (req, res) => {
   try {
+    const userId = req.userId;
+
     // Get fresh user data with all profile fields (exclude sensitive data)
-    const user = await User.findById(req.userId)
+    const user = await User.findById(userId)
       .select('-otp -otpExpiry -token')
       .populate('institute', 'name location type');
+
+    // Calculate user's global ranking using optimized approach
+    let globalRank = null;
+    let rankingScore = 0;
+    try {
+      // Use getUserRanking for better performance - only gets the user's rank
+      const rankResult = await User.getUserRanking(userId, 'global');
+
+      if (rankResult && rankResult.length > 0) {
+        globalRank = rankResult[0].rank;
+        rankingScore = rankResult[0].score;
+      }
+    } catch (error) {
+      console.warn('Failed to get user ranking:', error.message);
+      // Continue without ranking data
+    }
 
     res.status(200).json({
       success: true,
@@ -371,10 +389,21 @@ export const getProfile = async (req, res) => {
           lastLoginAt: user.lastLoginAt,
           isProfileComplete: user.isProfileComplete,
           referralCode: user.referralCode,
+          globalRank: globalRank,
+          rankingScore: rankingScore,
           rewards: {
-            ...user.rewards,
-            accuracy: user.calculateAccuracy()
+            coins: user.rewards.coins || 0,
+            xp: user.rewards.xp || 0,
+            level: user.calculateLevel(),
+            loginStreak: user.rewards.loginStreak || 0
           },
+          student: {
+            totalTests: user.student.totalTests || 0,
+            correctAnswers: user.student.correctAnswers || 0,
+            totalQuestions: user.student.totalQuestions || 0,
+            averageAccuracy: user.calculateAccuracy(),
+          },
+          teacher: user.teacher,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt
         }
@@ -441,6 +470,22 @@ export const updateProfile = async (req, res) => {
       .select('-otp -otpExpiry -token')
       .populate('institute', 'name location type');
 
+    // Calculate user's global ranking using optimized approach
+    let globalRank = null;
+    let rankingScore = 0;
+    try {
+      // Use getUserRanking for better performance - only gets the user's rank
+      const rankResult = await User.getUserRanking(userId, 'global');
+
+      if (rankResult && rankResult.length > 0) {
+        globalRank = rankResult[0].rank;
+        rankingScore = rankResult[0].score;
+      }
+    } catch (error) {
+      console.warn('Failed to get user ranking:', error.message);
+      // Continue without ranking data
+    }
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -457,9 +502,13 @@ export const updateProfile = async (req, res) => {
           lastLoginAt: updatedUser.lastLoginAt,
           isProfileComplete: updatedUser.isProfileComplete,
           referralCode: updatedUser.referralCode,
+          globalRank: globalRank,
+          rankingScore: rankingScore,
           rewards: {
-            ...updatedUser.rewards,
-            accuracy: updatedUser.calculateAccuracy()
+            coins: updatedUser.rewards.coins || 0,
+            xp: updatedUser.rewards.xp || 0,
+            level: updatedUser.calculateLevel(),
+            loginStreak: updatedUser.rewards.loginStreak || 0
           },
           createdAt: updatedUser.createdAt,
           updatedAt: updatedUser.updatedAt

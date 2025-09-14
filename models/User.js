@@ -1,12 +1,15 @@
 import mongoose from 'mongoose';
-import { LEVEL_SYSTEM, RANKING_SYSTEM, calculateRankingScore, getRankingScoreAggregation } from '../constants/rewards.js';
+import { LEVEL_SYSTEM, RANKING_SYSTEM, getRankingScoreAggregation } from '../constants/rewards.js';
 
 const userSchema = new mongoose.Schema({
-  // Basic Information
+  // ==========================================
+  // IDENTITY & BASIC INFORMATION
+  // ==========================================
   name: {
     type: String,
+    trim: true
   },
-  
+
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -14,38 +17,48 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  
-  // Role
+
+  // ==========================================
+  // ROLE & ACADEMIC CONTEXT
+  // ==========================================
   role: {
     type: String,
     enum: ['student', 'teacher'],
     default: 'student'
   },
-  
-  // Academic Information
+
   institute: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Institute',
     required: false
   },
-  
+
   subjects: [{
     type: String,
     trim: true
   }],
-  
-  // Account Status
+
+  // ==========================================
+  // ACCOUNT MANAGEMENT
+  // ==========================================
   isActive: {
     type: Boolean,
     default: true
   },
-  
-  // Authentication fields
+
+  isProfileComplete: {
+    type: Boolean,
+    default: false
+  },
+
+  // ==========================================
+  // AUTHENTICATION & SECURITY
+  // ==========================================
   otp: {
     type: String,
     default: null
   },
-  
+
   otpExpiry: {
     type: Date,
     default: null
@@ -55,24 +68,22 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  
+
   lastLoginAt: {
-    type: Date
+    type: Date,
+    default: null
   },
-  
-  // Profile completion status
-  isProfileComplete: {
-    type: Boolean,
-    default: false
-  },
-  
+
   token: {
     type: String,
     default: null
   },
 
-  // Rewards & Gamification System
+  // ==========================================
+  // GAMIFICATION & PROGRESS TRACKING
+  // ==========================================
   rewards: {
+    // Common rewards for both students and teachers
     coins: {
       type: Number,
       default: 0,
@@ -88,6 +99,14 @@ const userSchema = new mongoose.Schema({
       default: 1,
       min: 1
     },
+    loginStreak: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
+  // Student-specific 
+  student: {
     totalTests: {
       type: Number,
       default: 0,
@@ -102,31 +121,48 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 0,
       min: 0
+    }
+  },
+
+  // Teacher-specific 
+  teacher: {
+    testsCreated: {
+      type: Number,
+      default: 0,
+      min: 0
     },
-    lastLoginDate: {
-      type: Date,
-      default: null
+    questionsCreated: {
+      type: Number,
+      default: 0,
+      min: 0
     },
-    loginStreak: {
+    studentsTaught: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    totalAttemptsOfStudents: {
       type: Number,
       default: 0,
       min: 0
     }
   },
 
-  // Referral System
+  // ==========================================
+  // SOCIAL & REFERRAL SYSTEM
+  // ==========================================
   referredBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
   },
-  
+
   referralCode: {
     type: String,
     unique: true,
     sparse: true // Allow null values but enforce uniqueness when present
   }
-  
+
 }, {
   timestamps: true
 });
@@ -136,7 +172,7 @@ const userSchema = new mongoose.Schema({
 
 
 // Rewards System Methods
-userSchema.methods.generateReferralCode = function() {
+userSchema.methods.generateReferralCode = function () {
   if (!this.referralCode) {
     // Generate 8-character alphanumeric code
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -149,11 +185,11 @@ userSchema.methods.generateReferralCode = function() {
   return this.referralCode;
 };
 
-userSchema.methods.calculateLevel = function() {
+userSchema.methods.calculateLevel = function () {
   return LEVEL_SYSTEM.calculateLevelFromXP(this.rewards.xp);
 };
 
-userSchema.methods.addRewards = function(coins = 0, xp = 0, source = 'unknown') {
+userSchema.methods.addRewards = function (coins = 0, xp = 0, source = 'unknown') {
   this.rewards.coins += coins;
   this.rewards.xp += xp;
 
@@ -164,34 +200,46 @@ userSchema.methods.addRewards = function(coins = 0, xp = 0, source = 'unknown') 
   return this.save();
 };
 
-userSchema.methods.calculateAccuracy = function() {
-  if (this.rewards.totalQuestions === 0) return 0;
-  return Math.round((this.rewards.correctAnswers / this.rewards.totalQuestions) * 100);
+userSchema.methods.calculateAccuracy = function () {
+  // For students: calculate based on test performance
+  if (this.role === 'student') {
+    if (this.student.totalQuestions === 0) return 0;
+    return Math.round((this.student.correctAnswers / this.student.totalQuestions) * 100);
+  }
+
+  return 0;
 };
 
-userSchema.methods.calculateRankingScore = function() {
-  return calculateRankingScore(
-    this.rewards.totalTests, 
-    this.rewards.correctAnswers, 
-    this.rewards.totalQuestions
-  );
+userSchema.methods.calculateRankingScore = function () {
+  if (this.role === 'student') {
+    // Calculate accuracy: (correctAnswers / totalQuestions) * 100
+    const accuracy = this.student.totalQuestions > 0
+      ? Math.round((this.student.correctAnswers / this.student.totalQuestions) * 100)
+      : 0;
+
+    // Return: (totalTests * 10) + (accuracy * 10)
+    return (this.student.totalTests * 10) + (accuracy * 10);
+  } else if (this.role === 'teacher') {
+    // For teachers: (testsCreated * 10) + (totalAttempts * 10)
+    const testsScore = this.teacher.testsCreated * 10;
+    const attemptsScore = this.teacher.totalAttempts * 10;
+    return testsScore + attemptsScore;
+  }
+  return 0;
 };
-
-// Institute methods removed - institute field is now optional
-
 
 // Static methods
-userSchema.statics.findByEmail = function(email) {
+userSchema.statics.findByEmail = function (email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
 // findByEmailWithInstitute method removed - institute no longer required
 
-userSchema.statics.findByReferralCode = function(code) {
+userSchema.statics.findByReferralCode = function (code) {
   return this.findOne({ referralCode: code });
 };
 
-userSchema.statics.getLeaderboard = function(category = 'global', limit = 100, instituteId = null) {
+userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null) {
   const pipeline = [];
 
   // First stage: Match active users
@@ -245,9 +293,13 @@ userSchema.statics.getLeaderboard = function(category = 'global', limit = 100, i
         'rewards.coins': 1,
         'rewards.xp': 1,
         'rewards.level': 1,
-        'rewards.totalTests': 1,
-        'rewards.correctAnswers': 1,
-        'rewards.totalQuestions': 1,
+        'student.totalTests': 1,
+        'student.correctAnswers': 1,
+        'student.totalQuestions': 1,
+        'teacher.testsCreated': 1,
+        'teacher.questionsCreated': 1,
+        'teacher.averageRating': 1,
+        'teacher.totalAttempts': 1,
         rankingScore: 1
       }
     }
@@ -256,7 +308,7 @@ userSchema.statics.getLeaderboard = function(category = 'global', limit = 100, i
   return this.aggregate(pipeline);
 };
 
-userSchema.statics.getUserRanking = async function(userId, category = 'global') {
+userSchema.statics.getUserRanking = async function (userId, category = 'global') {
   const pipeline = [];
 
   // First stage: Match active users
@@ -317,12 +369,8 @@ userSchema.statics.getUserRanking = async function(userId, category = 'global') 
   return this.aggregate(pipeline);
 };
 
-// Institute-related static methods removed
-
-// Institute count middleware removed - no longer needed
-
 // Search users by name or email
-userSchema.statics.searchUsers = function(searchTerm, limit = 30) {
+userSchema.statics.searchUsers = function (searchTerm, limit = 30) {
   const regex = new RegExp(searchTerm, 'i');
   return this.find({
     $and: [
@@ -335,9 +383,9 @@ userSchema.statics.searchUsers = function(searchTerm, limit = 30) {
       }
     ]
   })
-  .select('name email')
-  .limit(limit)
-  .sort({ name: 1 });
+    .select('name email')
+    .limit(limit)
+    .sort({ name: 1 });
 };
 
 const User = mongoose.model('User', userSchema);
