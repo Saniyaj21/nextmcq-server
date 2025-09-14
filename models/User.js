@@ -220,9 +220,9 @@ userSchema.methods.calculateRankingScore = function () {
     // Return: (totalTests * 10) + (accuracy * 10)
     return (this.student.totalTests * 10) + (accuracy * 10);
   } else if (this.role === 'teacher') {
-    // For teachers: (testsCreated * 10) + (totalAttempts * 10)
+    // For teachers: (testsCreated * 10) + (totalAttemptsOfStudents * 10)
     const testsScore = this.teacher.testsCreated * 10;
-    const attemptsScore = this.teacher.totalAttempts * 10;
+    const attemptsScore = this.teacher.totalAttemptsOfStudents * 10;
     return testsScore + attemptsScore;
   }
   return 0;

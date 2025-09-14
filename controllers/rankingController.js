@@ -222,7 +222,7 @@ export const getUserRank = async (req, res) => {
 
     // Get user's current data for display
     const currentUser = await User.findById(userId).select(
-      'name email role rewards.coins rewards.xp rewards.level student.totalTests student.correctAnswers student.totalQuestions teacher.testsCreated teacher.averageRating teacher.totalAttempts'
+      'name email role rewards student teacher'
     );
 
     if (!currentUser) {
@@ -236,6 +236,20 @@ export const getUserRank = async (req, res) => {
     const accuracy = currentUser.calculateAccuracy();
     const rankingScore = currentUser.calculateRankingScore();
 
+    // Build student and teacher objects if they exist
+    const studentData = currentUser.role === 'student' && currentUser.student ? {
+      totalTests: currentUser.student.totalTests || 0,
+      correctAnswers: currentUser.student.correctAnswers || 0,
+      totalQuestions: currentUser.student.totalQuestions || 0,
+      averageAccuracy: accuracy
+    } : undefined;
+
+    const teacherData = currentUser.role === 'teacher' && currentUser.teacher ? {
+      testsCreated: currentUser.teacher.testsCreated || 0,
+      questionsCreated: currentUser.teacher.questionsCreated || 0,
+      studentsTaught: currentUser.teacher.studentsTaught || 0,
+      totalAttemptsOfStudents: currentUser.teacher.totalAttemptsOfStudents || 0
+    } : undefined;
 
     res.status(200).json({
       success: true,
@@ -255,6 +269,8 @@ export const getUserRank = async (req, res) => {
               level: currentUser.calculateLevel(),
               loginStreak: currentUser.rewards.loginStreak || 0
             },
+            ...(studentData && { student: studentData }),
+            ...(teacherData && { teacher: teacherData }),
             rankingScore
           }
         },

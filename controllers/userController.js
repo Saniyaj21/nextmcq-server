@@ -55,6 +55,21 @@ export const getPublicProfile = async (req, res) => {
       // Continue without ranking data
     }
 
+    // Build student and teacher objects if they exist
+    const studentData = user.role === 'student' && user.student ? {
+      totalTests: user.student.totalTests || 0,
+      correctAnswers: user.student.correctAnswers || 0,
+      totalQuestions: user.student.totalQuestions || 0,
+      averageAccuracy: accuracy
+    } : undefined;
+
+    const teacherData = user.role === 'teacher' && user.teacher ? {
+      testsCreated: user.teacher.testsCreated || 0,
+      questionsCreated: user.teacher.questionsCreated || 0,
+      studentsTaught: user.teacher.studentsTaught || 0,
+      totalAttemptsOfStudents: user.teacher.totalAttemptsOfStudents || 0
+    } : undefined;
+
     // Prepare public profile data
     const publicProfile = {
       _id: user._id,
@@ -66,10 +81,12 @@ export const getPublicProfile = async (req, res) => {
       level: user.rewards.level,
       accuracy: accuracy,
       streak: user.rewards.loginStreak,
-      testsCompleted: user.role === 'student' ? user.student.totalTests : user.teacher.testsCreated,
+      testsCompleted: user.role === 'student' ? (user.student?.totalTests || 0) : (user.teacher?.testsCreated || 0),
       globalRank: globalRank,
       rankingScore: rankingScore,
-      memberSince: user.createdAt
+      memberSince: user.createdAt,
+      ...(studentData && { student: studentData }),
+      ...(teacherData && { teacher: teacherData })
     };
 
     res.status(200).json({
