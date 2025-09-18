@@ -118,10 +118,6 @@ export const uploadProfileImage = async (req, res) => {
     const { imageData, imageType, fileName } = req.body;
     const userId = req.userId;
 
-    console.log('Profile Image Upload Request Body:', req.body);
-    console.log('Uploaded Files:', req.files);
-    console.log('Request Headers:', req.headers);
-
     // Validate required fields
     if (!imageData) {
       return res.status(400).json({
@@ -162,8 +158,8 @@ export const uploadProfileImage = async (req, res) => {
           public_id: `user-${userId}-${Date.now()}`,
           resource_type: 'image',
           transformation: [
-            { width: 300, height: 300, crop: 'fill', gravity: 'face' }, // Optimize for profile images
-            { quality: 'auto' }
+            { width: 100, height: 100, crop: 'fill', gravity: 'face' }, // Smaller size for speed
+            { quality: 'auto:eco' } // Eco mode for fastest processing
           ]
         },
         (error, result) => {
