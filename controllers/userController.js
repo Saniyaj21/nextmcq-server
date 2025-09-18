@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { v2 as cloudinary } from 'cloudinary';
 
 /**
  * Get public profile by user ID
@@ -114,16 +115,89 @@ export const getPublicProfile = async (req, res) => {
  */
 export const uploadProfileImage = async (req, res) => {
   try {
+    const { imageData, imageType, fileName } = req.body;
+    const userId = req.userId;
+
     console.log('Profile Image Upload Request Body:', req.body);
     console.log('Uploaded Files:', req.files);
     console.log('Request Headers:', req.headers);
 
-    // For now, just log the request and return success
+    // Validate required fields
+    if (!imageData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image data is required'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete existing profile image from Cloudinary if exists
+    if (user.profileImage && user.profileImage.publicId) {
+      try {
+        await cloudinary.uploader.destroy(user.profileImage.publicId);
+        console.log('Old profile image deleted from Cloudinary:', user.profileImage.publicId);
+      } catch (deleteError) {
+        console.warn('Failed to delete old profile image:', deleteError.message);
+        // Continue with upload even if delete fails
+      }
+    }
+
+    // Convert base64 to buffer for Cloudinary upload
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'nextmcq-profile-images',
+          public_id: `user-${userId}-${Date.now()}`,
+          resource_type: 'image',
+          transformation: [
+            { width: 300, height: 300, crop: 'fill', gravity: 'face' }, // Optimize for profile images
+            { quality: 'auto' }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      uploadStream.end(buffer);
+    });
+
+    console.log('Cloudinary upload result:', uploadResult);
+
+    // Update user's profile image in database
+    user.profileImage = {
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      uploadedAt: new Date()
+    };
+
+    // Save the updated user
+    await user.save();
+
+    console.log('Profile image saved for user:', userId);
+
     res.status(200).json({
       success: true,
-      message: 'Profile image upload request received successfully',
+      message: 'Profile image uploaded successfully to Cloudinary',
       data: {
-        message: 'Image upload logged successfully'
+        imageUrl: uploadResult.secure_url,
+        uploadedAt: user.profileImage.uploadedAt
       }
     });
 
@@ -131,7 +205,7 @@ export const uploadProfileImage = async (req, res) => {
     console.error('Upload Profile Image Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process profile image upload',
+      message: 'Failed to upload profile image to Cloudinary',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

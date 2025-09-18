@@ -9,6 +9,7 @@ import rankingRoutes from './routes/ranking.js';
 import userRoutes from './routes/user.js';
 import dotenv from 'dotenv';
 dotenv.config();
+import { v2 as cloudinary } from 'cloudinary';
 
 
 
@@ -17,6 +18,11 @@ const PORT = process.env.PORT || 8080;
 
 // Connect to database
 connectDB();
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  })
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));

@@ -389,6 +389,7 @@ export const getProfile = async (req, res) => {
           lastLoginAt: user.lastLoginAt,
           isProfileComplete: user.isProfileComplete,
           referralCode: user.referralCode,
+          profileImage: user.profileImage || null,
           globalRank: globalRank,
           rankingScore: rankingScore,
           rewards: {

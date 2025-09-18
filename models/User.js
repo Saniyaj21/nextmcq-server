@@ -19,6 +19,24 @@ const userSchema = new mongoose.Schema({
   },
 
   // ==========================================
+  // PROFILE IMAGE (Cloudinary)
+  // ==========================================
+  profileImage: {
+    url: {
+      type: String, // Cloudinary URL
+      default: null
+    },
+    publicId: {
+      type: String, // Cloudinary public ID for deletion
+      default: null
+    },
+    uploadedAt: {
+      type: Date,
+      default: null
+    }
+  },
+
+  // ==========================================
   // ROLE & ACADEMIC CONTEXT
   // ==========================================
   role: {
