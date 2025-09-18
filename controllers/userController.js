@@ -106,3 +106,33 @@ export const getPublicProfile = async (req, res) => {
     });
   }
 };
+
+/**
+ * Update user profile image
+ * POST /api/user/upload-profile-image
+ * Requires: authenticateUser middleware
+ */
+export const uploadProfileImage = async (req, res) => {
+  try {
+    console.log('Profile Image Upload Request Body:', req.body);
+    console.log('Uploaded Files:', req.files);
+    console.log('Request Headers:', req.headers);
+
+    // For now, just log the request and return success
+    res.status(200).json({
+      success: true,
+      message: 'Profile image upload request received successfully',
+      data: {
+        message: 'Image upload logged successfully'
+      }
+    });
+
+  } catch (error) {
+    console.error('Upload Profile Image Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process profile image upload',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
