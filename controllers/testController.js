@@ -11,6 +11,7 @@ export const getTests = async (req, res) => {
     // Get tests created by the authenticated user
     const tests = await Test.find({ createdBy: userId })
       .populate('createdBy', 'name email')
+      .populate('allowedUsers', 'name email')
       .sort({ createdAt: -1 });
     
     res.status(200).json({ success: true, data: tests });
