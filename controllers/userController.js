@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { v2 as cloudinary } from 'cloudinary';
+import validator from 'validator';
 
 /**
  * Get public profile by user ID
@@ -103,6 +104,73 @@ export const getPublicProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Search students by name or email
+ * GET /api/user/search?q=searchTerm
+ * Requires: authenticateUser middleware
+ * Returns only users with role 'student'
+ */
+export const searchUsers = async (req, res) => {
+  try {
+    const { q: searchTerm, limit = 20 } = req.query;
+    const userId = req.userId; // From authenticateUser middleware
+
+    const limitNum = Math.min(parseInt(limit) || 20, 50); // Max 50 results
+
+    // If no search term, return empty array
+    if (!searchTerm || !searchTerm.trim()) {
+      return res.status(200).json({
+        success: true,
+        message: 'Search completed successfully',
+        data: {
+          searchTerm: '',
+          users: [],
+          count: 0
+        }
+      });
+    }
+
+    const searchRegex = new RegExp(searchTerm.trim(), 'i');
+
+    // Search for students by name or email (excluding the current user)
+    const users = await User.find({
+      $and: [
+        { isActive: true },
+        { role: 'student' }, // Only search students
+        { _id: { $ne: userId } }, // Exclude current user
+        {
+          $or: [
+            { name: searchRegex },
+            { email: searchRegex }
+          ]
+        }
+      ]
+    })
+      .select('_id name email role institute')
+      .populate('institute', 'name location type')
+      .sort({ name: 1 })
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: 'Search completed successfully',
+      data: {
+        searchTerm: searchTerm.trim(),
+        users,
+        count: users.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Search Users Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
