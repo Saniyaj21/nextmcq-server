@@ -3,7 +3,7 @@ import Test from '../models/Test.js';
 export const getTests = async (req, res) => {
   try {
     const userId = req?.userId;
-    
+
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
@@ -13,10 +13,32 @@ export const getTests = async (req, res) => {
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
       .sort({ createdAt: -1 });
-    
+
     res.status(200).json({ success: true, data: tests });
   } catch (error) {
     console.error('Get tests error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get tests' });
+  }
+};
+
+export const getAllTests = async (req, res) => {
+  try {
+    const userId = req?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Get all tests - visibility logic handled in the query
+    // Since user wants ALL tests, we'll return everything
+    const tests = await Test.find({})
+      .populate('createdBy', 'name email')
+      .populate('allowedUsers', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: tests });
+  } catch (error) {
+    console.error('Get all tests error:', error);
     res.status(500).json({ success: false, message: 'Failed to get tests' });
   }
 };
