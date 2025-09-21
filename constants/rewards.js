@@ -3,42 +3,25 @@
 // Centralized configuration for all reward amounts and system parameters
 
 export const REWARDS = {
-  // Test-Based Rewards
-  TEST_COMPLETION: {
+  // Question-Based Rewards (per correct answer)
+  QUESTION_CORRECT: {
     FIRST_ATTEMPT: {
-      coins: 50,
-      xp: 100
+      coins: 5,
+      xp: 5
     },
     REPEAT_ATTEMPT: {
-      coins: 10,
-      xp: 20
+      coins: 2,
+      xp: 2
     }
   },
 
-  // Accuracy Bonuses (multipliers applied to base test rewards)
-  ACCURACY_BONUSES: {
-    PERFECT: { // 90-100%
-      coinMultiplier: 2.0,
-      bonusXP: 50
-    },
-    HIGH: { // 80-89%
-      coinMultiplier: 1.5,
-      bonusXP: 30
-    },
-    GOOD: { // 70-79%
-      coinMultiplier: 1.2,
-      bonusXP: 15
-    },
-    AVERAGE: { // 60-69%
-      coinMultiplier: 1.0,
-      bonusXP: 5
-    },
-    POOR: { // Below 60%
-      coinMultiplier: 1.0,
-      bonusXP: 0
+  // Speed Bonus (for completing test under 50% of time limit)
+  SPEED_BONUS: {
+    UNDER_50_PERCENT_TIME: {
+      coins: 15,
+      xp: 15
     }
   },
-
 
   // Daily Activities
   DAILY_ACTIVITIES: {
@@ -83,38 +66,38 @@ export const REWARDS = {
 export const LEVEL_SYSTEM = {
   // Starting XP requirement for level 1
   BASE_XP: 100,
-  
+
   // XP increase percentage per level (10%)
   XP_MULTIPLIER: 1.1,
-  
+
   // Calculate XP required for a specific level
   calculateXPForLevel: (level) => {
     if (level <= 1) return 0;
     let totalXP = 0;
     let currentLevelXP = LEVEL_SYSTEM.BASE_XP;
-    
+
     for (let i = 1; i < level; i++) {
       totalXP += currentLevelXP;
       currentLevelXP = Math.floor(currentLevelXP * LEVEL_SYSTEM.XP_MULTIPLIER);
     }
-    
+
     return totalXP;
   },
-  
+
   // Calculate level from total XP
   calculateLevelFromXP: (totalXP) => {
     if (totalXP < LEVEL_SYSTEM.BASE_XP) return 1;
-    
+
     let level = 1;
     let xpUsed = 0;
     let currentLevelXP = LEVEL_SYSTEM.BASE_XP;
-    
+
     while (xpUsed + currentLevelXP <= totalXP) {
       xpUsed += currentLevelXP;
       level++;
       currentLevelXP = Math.floor(currentLevelXP * LEVEL_SYSTEM.XP_MULTIPLIER);
     }
-    
+
     return level;
   }
 };
@@ -125,7 +108,7 @@ export const RANKING_SYSTEM = {
     TESTS_WEIGHT: 10,      // Points per test completed
     ACCURACY_WEIGHT: 10    // Points per 1% accuracy (max 1,000 for 100%)
   },
-  
+
   // Monthly ranking rewards
   MONTHLY_RANKING_REWARDS: {
     CHAMPION: { // #1
@@ -145,15 +128,15 @@ export const RANKING_SYSTEM = {
       badge: 'Monthly Performer'
     }
   },
-  
+
   // Ranking categories
   CATEGORIES: {
     GLOBAL: 'global',
-    STUDENTS: 'students', 
+    STUDENTS: 'students',
     TEACHERS: 'teachers',
     INSTITUTE: 'institute'
   },
-  
+
   // Category labels for display
   CATEGORY_LABELS: {
     global: 'Global Rankings',
@@ -172,13 +155,13 @@ export const SYSTEM_LIMITS = {
   // Maximum daily rewards to prevent abuse
   MAX_DAILY_COINS: 1000,
   MAX_DAILY_XP: 2000,
-  
+
   // Test attempt limits
   MAX_TEST_ATTEMPTS_PER_DAY: 50,
-  
+
   // Referral limits
   MAX_REFERRALS_PER_DAY: 10,
-  
+
   // Login streak maximum (resets after this)
   MAX_LOGIN_STREAK: 365
 };
@@ -200,20 +183,38 @@ export const getAccuracyTier = (accuracy) => {
   return 'POOR';
 };
 
+// Helper function to calculate speed bonus for test completion
+export const calculateSpeedBonus = (timeLimit, actualTime) => {
+  // Time limit is in minutes, convert to seconds for calculation
+  const timeLimitSeconds = timeLimit * 60;
+  const fiftyPercentTime = timeLimitSeconds * 0.5;
+
+  // If user completed test under 50% of time limit
+  if (actualTime <= fiftyPercentTime) {
+    return {
+      coins: REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.coins,
+      xp: REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.xp
+    };
+  }
+
+  // No speed bonus
+  return { coins: 0, xp: 0 };
+};
+
 // Helper function to calculate test completion rewards
 export const calculateTestRewards = (isFirstAttempt, accuracy) => {
   // Base rewards
   const base = isFirstAttempt ? REWARDS.TEST_COMPLETION.FIRST_ATTEMPT : REWARDS.TEST_COMPLETION.REPEAT_ATTEMPT;
   let coins = base.coins;
   let xp = base.xp;
-  
+
   // Apply accuracy bonus
   const accuracyTier = getAccuracyTier(accuracy);
   const accuracyBonus = REWARDS.ACCURACY_BONUSES[accuracyTier];
-  
+
   coins = Math.floor(coins * accuracyBonus.coinMultiplier);
   xp += accuracyBonus.bonusXP;
-  
+
   return { coins, xp };
 };
 
@@ -265,6 +266,7 @@ export default {
   SYSTEM_LIMITS,
   ACCURACY_THRESHOLDS,
   getAccuracyTier,
+  calculateSpeedBonus,
   calculateTestRewards,
   getRankingScoreAggregation
 };

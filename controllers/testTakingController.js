@@ -2,6 +2,7 @@
 // Controller for test-taking functionality
 
 import Test from '../models/Test.js';
+import { REWARDS } from '../constants/rewards.js';
 
 /**
  * Get single test details for test-taking
@@ -52,7 +53,17 @@ export const getTestDetails = async (req, res) => {
       createdBy: test.createdBy,
       createdAt: test.createdAt,
       hasAccess: hasAccess,
-      hasPendingRequest: hasPendingRequest
+      hasPendingRequest: hasPendingRequest,
+      rewards: {
+        perQuestion: {
+          firstAttempt: REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT,
+          repeatAttempt: REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT
+        },
+        speedBonus: {
+          under50PercentTime: REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME,
+          thresholdMinutes: Math.floor(test.timeLimit * 0.5) // 50% of time limit in minutes
+        }
+      }
     };
 
     res.status(200).json({
