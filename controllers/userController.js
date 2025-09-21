@@ -87,6 +87,7 @@ export const getPublicProfile = async (req, res) => {
       globalRank: globalRank,
       rankingScore: rankingScore,
       memberSince: user.createdAt,
+      profileImage: user.profileImage, // Include profile image
       ...(studentData && { student: studentData }),
       ...(teacherData && { teacher: teacherData })
     };
