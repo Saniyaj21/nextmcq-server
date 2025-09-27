@@ -6,8 +6,8 @@ export const REWARDS = {
   // Question-Based Rewards (per correct answer)
   QUESTION_CORRECT: {
     FIRST_ATTEMPT: {
-      coins: 5,
-      xp: 5
+      coins: 10,
+      xp: 10
     },
     REPEAT_ATTEMPT: {
       coins: 2,
