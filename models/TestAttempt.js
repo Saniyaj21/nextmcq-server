@@ -1,5 +1,5 @@
 // File: ./models/TestAttempt.js
-// Clean and simple model for tracking test attempts
+// Enhanced model for tracking test attempts with test-taking functionality
 
 import mongoose from 'mongoose';
 
@@ -30,6 +30,18 @@ const testAttemptSchema = new mongoose.Schema({
     default: 'in_progress'
   },
 
+  // Test-taking progress tracking
+  currentQuestion: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
+  lastUpdated: {
+    type: Date,
+    default: Date.now
+  },
+
   // Timing
   startedAt: {
     type: Date,
@@ -51,6 +63,32 @@ const testAttemptSchema = new mongoose.Schema({
     default: 0
   },
 
+  // Server-side time validation to prevent manipulation
+  serverStartTime: {
+    type: Date,
+    required: true
+  },
+
+  serverEndTime: {
+    type: Date,
+    default: null
+  },
+
+  clientTimeValidation: {
+    startTime: {
+      type: Date,
+      default: null
+    },
+    endTime: {
+      type: Date,
+      default: null
+    },
+    timeDifference: {
+      type: Number, // seconds
+      default: 0
+    }
+  },
+
   // User answers
   answers: [{
     questionId: {
@@ -69,6 +107,10 @@ const testAttemptSchema = new mongoose.Schema({
     timeSpent: {
       type: Number, // seconds on this question
       default: 0
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now
     }
   }],
 
@@ -90,7 +132,7 @@ const testAttemptSchema = new mongoose.Schema({
     }
   },
 
-  // Rewards earned
+  // Enhanced rewards with breakdown
   rewards: {
     coins: {
       type: Number,
@@ -99,15 +141,33 @@ const testAttemptSchema = new mongoose.Schema({
     xp: {
       type: Number,
       default: 0
+    },
+    breakdown: {
+      questionRewards: {
+        coins: { type: Number, default: 0 },
+        xp: { type: Number, default: 0 }
+      },
+      speedBonus: {
+        coins: { type: Number, default: 0 },
+        xp: { type: Number, default: 0 }
+      },
+      completionBonus: {
+        coins: { type: Number, default: 0 },
+        xp: { type: Number, default: 0 }
+      }
     }
   }
 }, {
   timestamps: true
 });
 
-// Indexes for performance
+// Indexes for performance optimization
 testAttemptSchema.index({ userId: 1, status: 1 });
 testAttemptSchema.index({ testId: 1, userId: 1 });
+testAttemptSchema.index({ testId: 1, completedAt: -1 });
+testAttemptSchema.index({ userId: 1, completedAt: -1 });
+testAttemptSchema.index({ serverStartTime: 1 });
+testAttemptSchema.index({ status: 1, createdAt: -1 });
 
 const TestAttempt = mongoose.model('TestAttempt', testAttemptSchema);
 

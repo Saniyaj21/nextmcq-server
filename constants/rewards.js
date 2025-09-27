@@ -23,6 +23,12 @@ export const REWARDS = {
     }
   },
 
+  // Test Completion Bonus
+  TEST_COMPLETION: {
+    coins: 10,
+    xp: 15
+  },
+
   // Daily Activities
   DAILY_ACTIVITIES: {
     LOGIN: {
