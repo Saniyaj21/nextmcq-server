@@ -515,7 +515,97 @@ export const getTestDetails = async (req, res) => {
       }
     }
 
-    // Return test data formatted for test-taking
+    // Get user's attempts on this test for enhanced UI
+    const userAttempts = await TestAttempt.find({
+      userId,
+      testId,
+      status: 'completed'
+    })
+    .select('attemptNumber score timeSpent completedAt rewards')
+    .sort({ completedAt: -1 })
+    .limit(5); // Get last 5 attempts
+
+    // Calculate user statistics
+    const userStats = userAttempts.length > 0 ? {
+      attempts: userAttempts.length,
+      bestScore: Math.max(...userAttempts.map(a => a.score.percentage)),
+      lastAttempt: userAttempts[0].completedAt,
+      averageScore: Math.round(userAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / userAttempts.length),
+      improvement: userAttempts.length > 1 ?
+        userAttempts[0].score.percentage - userAttempts[userAttempts.length - 1].score.percentage : 0,
+      averageTime: Math.round(userAttempts.reduce((sum, a) => sum + a.timeSpent, 0) / userAttempts.length)
+    } : null;
+
+    // Get recent attempts for display (last 3)
+    const recentAttempts = userAttempts.slice(0, 3).map(attempt => ({
+      attemptNumber: attempt.attemptNumber,
+      score: attempt.score.percentage,
+      timeSpent: attempt.timeSpent,
+      completedAt: attempt.completedAt,
+      rewards: attempt.rewards
+    }));
+
+    // Calculate global stats (total attempts count)
+    const totalAttempts = await TestAttempt.countDocuments({ testId, status: 'completed' });
+
+    // Get top performers (top 5 users by their best score, then by best time)
+    const topPerformers = await TestAttempt.aggregate([
+      {
+        $match: {
+          testId: test._id,
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          bestScore: { $max: '$score.percentage' },
+          bestTime: { $min: '$timeSpent' }, // Best (lowest) time for their best score
+          attemptCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: {
+          bestScore: -1, // Highest score first
+          bestTime: 1     // Then lowest time for tie-breaking
+        }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: '$userInfo'
+      },
+      {
+        $project: {
+          userId: '$_id',
+          userName: '$userInfo.name',
+          profileImage: '$userInfo.profileImage.url',
+          score: '$bestScore',
+          timeSpent: '$bestTime',
+          attemptCount: 1
+        }
+      }
+    ]);
+
+    // Format top performers data
+    const formattedTopPerformers = topPerformers.map(performer => ({
+      userId: performer.userId,
+      userName: performer.userName,
+      profileImage: performer.profileImage,
+      score: performer.score,
+      timeSpent: performer.timeSpent
+    }));
+
+    // Return enhanced test data with user progress
     const testData = {
       _id: test._id,
       title: test.title,
@@ -524,11 +614,18 @@ export const getTestDetails = async (req, res) => {
       chapter: test.chapter,
       timeLimit: test.timeLimit,
       isPublic: test.isPublic,
-      questionsCount: test.questions.length, // Get count without populating
+      questionsCount: test.questions.length,
+      attemptsCount: totalAttempts, // Real attempts count from database
       createdBy: test.createdBy,
       createdAt: test.createdAt,
       hasAccess: hasAccess,
       hasPendingRequest: hasPendingRequest,
+
+      // Enhanced data for improved UX
+      userStats,
+      recentAttempts,
+      topPerformers: formattedTopPerformers,
+
       rewards: {
         perQuestion: {
           firstAttempt: REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT,
@@ -536,7 +633,7 @@ export const getTestDetails = async (req, res) => {
         },
         speedBonus: {
           under50PercentTime: REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME,
-          thresholdMinutes: Math.floor(test.timeLimit * 0.5) // 50% of time limit in minutes
+          thresholdMinutes: Math.floor(test.timeLimit * 0.5)
         }
       }
     };
