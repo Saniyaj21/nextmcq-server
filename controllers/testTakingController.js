@@ -5,7 +5,7 @@ import Test from '../models/Test.js';
 import TestAttempt from '../models/TestAttempt.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
-import { REWARDS, LEVEL_SYSTEM } from '../constants/rewards.js';
+import { REWARDS, LEVEL_SYSTEM, calculateStudentStreakStatus } from '../constants/rewards.js';
 import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.js';
 
 /**
@@ -59,16 +59,12 @@ const calculateTestRewards = (attempt, test) => {
     ? REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME
     : { coins: 0, xp: 0 };
 
-  // Calculate completion bonus
-  const completionBonus = REWARDS.TEST_COMPLETION;
-
   return {
-    coins: questionRewards.coins + speedBonus.coins + completionBonus.coins,
-    xp: questionRewards.xp + speedBonus.xp + completionBonus.xp,
+    coins: questionRewards.coins + speedBonus.coins,
+    xp: questionRewards.xp + speedBonus.xp,
     breakdown: {
       questionRewards,
-      speedBonus,
-      completionBonus
+      speedBonus
     }
   };
 };
@@ -352,7 +348,64 @@ export const submitTest = async (req, res) => {
       endTime: new Date(clientEndTime),
       timeDifference: Math.abs(validatedTimeSpent - Math.floor((new Date(clientEndTime) - attempt.serverStartTime) / 1000))
     };
+    // Update student streak (test-based) BEFORE marking attempt as completed
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    // Count previously completed attempts today (excluding current attempt)
+    const todaysAttempts = await TestAttempt.countDocuments({
+      userId: userId,
+      _id: { $ne: attempt._id }, // Exclude current attempt
+      status: 'completed',
+      completedAt: { $gte: startOfDay, $lt: endOfDay }
+    });
+
+    console.log(`[STREAK_DEBUG] User ${userId} - Previous completed attempts today: ${todaysAttempts}, Current attempt: ${attempt._id}`);
+
+    let streakUpdate = {};
+    if (todaysAttempts === 0) {
+      // This is the student's first test today - update streak
+      console.log(`[STREAK_DEBUG] User ${userId} - First test today, checking streak logic`);
+
+      // Get the student's last test submission date (excluding current attempt)
+      const lastTestAttempt = await TestAttempt.findOne({
+        userId: userId,
+        _id: { $ne: attempt._id }, // Exclude current attempt
+        status: 'completed'
+      }).sort({ completedAt: -1 });
+
+      const lastActivityAt = lastTestAttempt ? lastTestAttempt.completedAt : null;
+      console.log(`[STREAK_DEBUG] User ${userId} - Last test submission: ${lastActivityAt}, Current time: ${new Date()}`);
+
+      const streakStatus = calculateStudentStreakStatus(lastActivityAt, new Date());
+      console.log(`[STREAK_DEBUG] User ${userId} - Streak status: shouldIncrement=${streakStatus.shouldIncrement}, shouldReset=${streakStatus.shouldReset}, newStreak=${streakStatus.newStreak}, daysSinceLast=${streakStatus.daysSinceLast}`);
+
+      if (streakStatus.shouldIncrement) {
+        if (streakStatus.newStreak !== null) {
+          // Set specific streak value (for first-time users)
+          streakUpdate['rewards.loginStreak'] = streakStatus.newStreak;
+          console.log(`[STREAK_DEBUG] User ${userId} - Setting new streak to ${streakStatus.newStreak} (first-time user)`);
+        } else {
+          // Increment existing streak
+          const currentUser = await User.findById(userId);
+          const newStreakValue = (currentUser.rewards.loginStreak || 0) + 1;
+          streakUpdate['rewards.loginStreak'] = newStreakValue;
+          console.log(`[STREAK_DEBUG] User ${userId} - Incrementing streak from ${currentUser.rewards.loginStreak || 0} to ${newStreakValue}`);
+        }
+      } else if (streakStatus.shouldReset) {
+        // Reset streak to 0
+        streakUpdate['rewards.loginStreak'] = 0;
+        console.log(`[STREAK_DEBUG] User ${userId} - Resetting streak to 0 (missed consecutive days)`);
+      } else {
+        console.log(`[STREAK_DEBUG] User ${userId} - No streak change needed`);
+      }
+    } else {
+      console.log(`[STREAK_DEBUG] User ${userId} - Already completed ${todaysAttempts} test(s) today, skipping streak update`);
+    }
+
     attempt.status = 'completed';
+    attempt.completedAt = new Date();
 
     await attempt.save();
 
@@ -363,7 +416,7 @@ export const submitTest = async (req, res) => {
     });
 
     // Update user statistics
-    await User.findByIdAndUpdate(userId, {
+    const userStatsUpdate = {
       $inc: {
         'student.totalTests': 1,
         'student.correctAnswers': correctCount,
@@ -371,7 +424,17 @@ export const submitTest = async (req, res) => {
         'rewards.coins': rewards.coins,
         'rewards.xp': rewards.xp
       }
-    });
+    };
+
+    // Add streak update if applicable
+    if (Object.keys(streakUpdate).length > 0) {
+      userStatsUpdate.$set = { ...userStatsUpdate.$set, ...streakUpdate };
+      console.log(`[STREAK_DEBUG] User ${userId} - Applying streak update: ${JSON.stringify(streakUpdate)}`);
+    } else {
+      console.log(`[STREAK_DEBUG] User ${userId} - No streak update needed`);
+    }
+
+    await User.findByIdAndUpdate(userId, userStatsUpdate);
 
     // Update user level
     const user = await User.findById(userId);

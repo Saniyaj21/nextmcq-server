@@ -7,6 +7,16 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Added
+- Teacher rewards for test creation (50 coins + 75 XP awarded when teachers create tests)
+- Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
+- Debug logging for student streak system ([STREAK_DEBUG] and [STREAK_CALC] prefixes)
+
+### Removed
+- Test completion bonus from reward system (10 coins + 15 XP no longer awarded for completing tests)
+- Streak milestone bonuses (1,000-5,000 coins + 500-2,000 XP for 50/100/200 day streaks)
+- Daily activity rewards (5 coins + 10 XP for login, 15 coins + 20 XP for first test of day)
+
 ### Fixed
 - Critical ranking score calculation bug in MongoDB aggregation pipelines (getLeaderboard and getUserRanking methods)
 - Fixed double multiplication of accuracy weight causing incorrect ranking scores

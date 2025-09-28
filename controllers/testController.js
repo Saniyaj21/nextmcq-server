@@ -1,4 +1,6 @@
 import Test from '../models/Test.js';
+import User from '../models/User.js';
+import { REWARDS } from '../constants/rewards.js';
 
 export const getTests = async (req, res) => {
   try {
@@ -62,6 +64,28 @@ export const createTest = async (req, res) => {
       allowedUsers: allowedUsers || [],
       createdBy
     });
+
+    // Distribute rewards to teacher for creating test
+    const teacherReward = REWARDS.TEACHER.CREATE_TEST;
+    await User.findByIdAndUpdate(createdBy, {
+      $inc: {
+        'rewards.coins': teacherReward.coins,
+        'rewards.xp': teacherReward.xp,
+        'teacher.testsCreated': 1
+      }
+    });
+
+    // Update teacher level based on new XP
+    const teacher = await User.findById(createdBy);
+    const newLevel = teacher.calculateLevel();
+    if (newLevel > teacher.rewards.level) {
+      await User.findByIdAndUpdate(createdBy, {
+        $set: { 'rewards.level': newLevel }
+      });
+    }
+
+    console.log(`Teacher rewards distributed for test creation: userId=${createdBy}, coins=${teacherReward.coins}, xp=${teacherReward.xp}`);
+
     res.status(201).json({ success: true, data: { test } });
   } catch (error) {
     //console.log(error);

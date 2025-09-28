@@ -23,30 +23,8 @@ export const REWARDS = {
     }
   },
 
-  // Test Completion Bonus
-  TEST_COMPLETION: {
-    coins: 10,
-    xp: 15
-  },
 
-  // Daily Activities
-  DAILY_ACTIVITIES: {
-    LOGIN: {
-      coins: 5,
-      xp: 10
-    },
-    FIRST_TEST_OF_DAY: {
-      coins: 15,
-      xp: 20
-    }
-  },
 
-  // Streak Bonuses
-  STREAK_BONUSES: {
-    50: { coins: 1000, xp: 500 },
-    100: { coins: 2500, xp: 1000 },
-    200: { coins: 5000, xp: 2000 }
-  },
 
   // Referral Rewards
   REFERRAL: {
@@ -207,22 +185,36 @@ export const calculateSpeedBonus = (timeLimit, actualTime) => {
   return { coins: 0, xp: 0 };
 };
 
-// Helper function to calculate test completion rewards
-export const calculateTestRewards = (isFirstAttempt, accuracy) => {
-  // Base rewards
-  const base = isFirstAttempt ? REWARDS.TEST_COMPLETION.FIRST_ATTEMPT : REWARDS.TEST_COMPLETION.REPEAT_ATTEMPT;
-  let coins = base.coins;
-  let xp = base.xp;
+// Helper function to calculate student streak status based on test submissions
+export const calculateStudentStreakStatus = (lastTestSubmissionAt, currentSubmission) => {
+  console.log(`[STREAK_CALC] Input - lastTestSubmissionAt: ${lastTestSubmissionAt}, currentSubmission: ${currentSubmission}`);
 
-  // Apply accuracy bonus
-  const accuracyTier = getAccuracyTier(accuracy);
-  const accuracyBonus = REWARDS.ACCURACY_BONUSES[accuracyTier];
+  if (!lastTestSubmissionAt) {
+    // First test submission - start streak at 1
+    console.log(`[STREAK_CALC] Result - First time user, setting streak to 1`);
+    return { shouldIncrement: true, shouldReset: false, newStreak: 1 };
+  }
 
-  coins = Math.floor(coins * accuracyBonus.coinMultiplier);
-  xp += accuracyBonus.bonusXP;
+  const lastSubmission = new Date(lastTestSubmissionAt);
+  const currentTime = new Date(currentSubmission);
 
-  return { coins, xp };
+  // Calculate days between submissions
+  const timeDiff = currentTime.getTime() - lastSubmission.getTime();
+  const daysSinceLast = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+  console.log(`[STREAK_CALC] Calculation - lastSubmission: ${lastSubmission}, currentTime: ${currentTime}, daysSinceLast: ${daysSinceLast}`);
+
+  // Streak continues if submission is within 1-2 days of last submission
+  // This allows for some flexibility (missed 1 day but came back)
+  const shouldIncrement = daysSinceLast >= 1 && daysSinceLast <= 2;
+  const shouldReset = daysSinceLast > 2;
+  const newStreak = shouldIncrement ? null : 0; // null means increment current streak
+
+  console.log(`[STREAK_CALC] Result - shouldIncrement: ${shouldIncrement}, shouldReset: ${shouldReset}, newStreak: ${newStreak}`);
+
+  return { shouldIncrement, shouldReset, newStreak, daysSinceLast };
 };
+
 
 
 // MongoDB aggregation pipeline for ranking score calculation
@@ -273,6 +265,6 @@ export default {
   ACCURACY_THRESHOLDS,
   getAccuracyTier,
   calculateSpeedBonus,
-  calculateTestRewards,
+  calculateStudentStreakStatus,
   getRankingScoreAggregation
 };
