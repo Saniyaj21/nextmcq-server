@@ -8,6 +8,7 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+Rahul
 - Teacher rewards for test creation (50 coins + 75 XP awarded when teachers create tests)
 - Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
 - Debug logging for student streak system ([STREAK_DEBUG] and [STREAK_CALC] prefixes)
