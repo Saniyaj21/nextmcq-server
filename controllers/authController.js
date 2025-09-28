@@ -144,7 +144,23 @@ export const verifyOTP = async (req, res) => {
         token,
         user: {
           _id: updatedUser._id,
-          email: updatedUser.email
+          name: updatedUser.name || '',
+          email: updatedUser.email,
+          role: updatedUser.role || 'student',
+          subjects: updatedUser.subjects || [],
+          institute: updatedUser.institute || null,
+          isActive: updatedUser.isActive !== undefined ? updatedUser.isActive : true,
+          isEmailVerified: updatedUser.isEmailVerified || false,
+          lastLoginAt: updatedUser.lastLoginAt || null,
+          isProfileComplete: updatedUser.isProfileComplete || false,
+          referralCode: updatedUser.referralCode || null,
+          profileImage: updatedUser.profileImage || null,
+          rewards: {
+            coins: updatedUser.rewards?.coins || 0,
+            xp: updatedUser.rewards?.xp || 0,
+            level: updatedUser.calculateLevel(),
+            loginStreak: updatedUser.rewards?.loginStreak || 0
+          }
         },
         isNewUser: isNewUser
       }

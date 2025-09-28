@@ -89,8 +89,8 @@ export const LEVEL_SYSTEM = {
 export const RANKING_SYSTEM = {
   // Ranking score calculation weights
   SCORE_FORMULA: {
-    TESTS_WEIGHT: 10,      // Points per test completed
-    ACCURACY_WEIGHT: 10    // Points per 1% accuracy (max 1,000 for 100%)
+    TESTS_WEIGHT: 20,      // Points per test completed (increased)
+    ACCURACY_WEIGHT: 5     // Points per 1% accuracy (reduced from 10)
   },
 
   // Monthly ranking rewards
@@ -226,9 +226,9 @@ export const getRankingScoreAggregation = () => {
         $cond: {
           if: { $eq: ['$role', 'student'] },
           then: {
-            // Student ranking: (totalTests * 10) + (accuracy * 10)
+            // Student ranking: (totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT)
             $add: [
-              { $multiply: ['$student.totalTests', 10] },
+              { $multiply: ['$student.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
               {
                 $cond: {
                   if: { $eq: ['$student.totalQuestions', 0] },
@@ -236,7 +236,7 @@ export const getRankingScoreAggregation = () => {
                   else: {
                     $multiply: [
                       { $round: [{ $multiply: [{ $divide: ['$student.correctAnswers', '$student.totalQuestions'] }, 100] }] },
-                      10
+                      RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
                     ]
                   }
                 }

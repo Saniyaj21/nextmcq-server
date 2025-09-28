@@ -235,8 +235,9 @@ userSchema.methods.calculateRankingScore = function () {
       ? Math.round((this.student.correctAnswers / this.student.totalQuestions) * 100)
       : 0;
 
-    // Return: (totalTests * 10) + (accuracy * 10)
-    return (this.student.totalTests * 10) + (accuracy * 10);
+    // Return: (totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT)
+    const { TESTS_WEIGHT, ACCURACY_WEIGHT } = RANKING_SYSTEM.SCORE_FORMULA;
+    return (this.student.totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT);
   } else if (this.role === 'teacher') {
     // For teachers: (testsCreated * 10) + (totalAttemptsOfStudents * 10)
     const testsScore = this.teacher.testsCreated * 10;

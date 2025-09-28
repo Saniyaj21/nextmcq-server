@@ -22,6 +22,12 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - Fixed double multiplication of accuracy weight causing incorrect ranking scores
 - Fixed accuracy rounding inconsistency between method calculation and aggregation pipeline
 - Ranking scores now correctly calculate as (Total Tests × 10) + (Accuracy % × 10) with consistent rounding
+- Login response now includes complete user data (role, rewards, profile info) with proper null-safe defaults for new users
+- Frontend login handler updated to use complete server response instead of hardcoded minimal user data
+
+### Changed
+- Student ranking score formula adjusted to favor consistency: (Total Tests × 20) + (Accuracy % × 5)
+- Reduced accuracy weight from 10 to 5, increased test weight from 10 to 20 to prevent new users with perfect scores from beating experienced users
 
 ### Refactored
 - Implemented single source of truth for ranking score calculation
