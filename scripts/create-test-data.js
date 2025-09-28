@@ -17,6 +17,122 @@ const connectDB = async () => {
   }
 };
 
+const createSingleQuestionTest = async () => {
+  try {
+    console.log('Creating single question test for quick testing...');
+
+    // Find an existing user to be the test creator (create one if none exists)
+    let creator = await User.findOne();
+    if (!creator) {
+      creator = new User({
+        name: 'Test Teacher',
+        email: 'teacher@test.com',
+        role: 'teacher'
+      });
+      await creator.save();
+      console.log('Created test teacher:', creator._id);
+    }
+
+    // Create a single sample question
+    const question = new Question({
+      question: 'What is the capital of France?',
+      options: ['London', 'Berlin', 'Paris', 'Madrid'],
+      correctAnswer: 2,
+      explanation: 'Paris is the capital and most populous city of France.',
+      createdBy: creator._id
+    });
+
+    await question.save();
+    console.log('Created question:', question.question);
+
+    // Create a public test with just one question for easy testing
+    const test = new Test({
+      title: 'Quick Test - Single Question',
+      description: 'A simple test with just one question for quick testing purposes.',
+      subject: 'Geography',
+      chapter: 'Capitals',
+      timeLimit: 5, // 5 minutes
+      isPublic: true, // Public test for easy access
+      questions: [question._id],
+      createdBy: creator._id,
+      attemptsCount: 0
+    });
+
+    await test.save();
+
+    console.log('\n✅ Single question test created successfully!');
+    console.log('📋 Test Details:');
+    console.log('   Title:', test.title);
+    console.log('   ID:', test._id);
+    console.log('   Questions: 1');
+    console.log('   Time Limit:', test.timeLimit, 'minutes');
+    console.log('   Public Access: Yes');
+    console.log('   Created by:', creator.name);
+    console.log('   Question:', question.question);
+    console.log('   Correct Answer:', question.options[question.correctAnswer]);
+
+    console.log('\n🚀 Ready for quick testing!');
+    console.log('You can now quickly test the take-test flow with just one question.');
+
+  } catch (error) {
+    console.error('Error creating single question test:', error);
+  }
+};
+
+const createAnotherTest = async () => {
+  try {
+    console.log('Creating another single question test...');
+
+    // Find the existing user
+    const creator = await User.findOne({ role: 'teacher' });
+    if (!creator) {
+      console.log('No teacher found, skipping additional test creation');
+      return;
+    }
+
+    // Create another sample question
+    const question = new Question({
+      question: 'Which planet is known as the Red Planet?',
+      options: ['Venus', 'Mars', 'Jupiter', 'Saturn'],
+      correctAnswer: 1,
+      explanation: 'Mars is called the Red Planet because of its reddish appearance due to iron oxide (rust) on its surface.',
+      createdBy: creator._id
+    });
+
+    await question.save();
+    console.log('Created question:', question.question);
+
+    // Create another public test
+    const test = new Test({
+      title: 'Quick Test - Mars Question',
+      description: 'Another simple test with one question about our solar system.',
+      subject: 'Science',
+      chapter: 'Planets',
+      timeLimit: 3, // 3 minutes - shorter for quicker testing
+      isPublic: true,
+      questions: [question._id],
+      createdBy: creator._id,
+      attemptsCount: 0
+    });
+
+    await test.save();
+
+    console.log('\n✅ Second single question test created successfully!');
+    console.log('📋 Test Details:');
+    console.log('   Title:', test.title);
+    console.log('   ID:', test._id);
+    console.log('   Questions: 1');
+    console.log('   Time Limit:', test.timeLimit, 'minutes');
+    console.log('   Public Access: Yes');
+    console.log('   Created by:', creator.name);
+    console.log('   Question:', question.question);
+    console.log('   Correct Answer:', question.options[question.correctAnswer]);
+
+  } catch (error) {
+    console.error('Error creating another test:', error);
+  }
+};
+
 const createTestData = async () => {
   try {
     console.log('Creating test data for testing...');
@@ -134,7 +250,16 @@ const createTestData = async () => {
 // Run the script
 const run = async () => {
   await connectDB();
-  await createTestData();
+
+  // Create single question test for quick testing
+  await createSingleQuestionTest();
+
+  // Create an additional test for more testing options
+  await createAnotherTest();
+
+  // Uncomment to also create full test data
+  // await createTestData();
+
   process.exit(0);
 };
 
