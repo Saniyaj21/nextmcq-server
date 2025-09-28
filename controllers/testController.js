@@ -1,5 +1,6 @@
 import Test from '../models/Test.js';
 import User from '../models/User.js';
+import Question from '../models/Question.js';
 import { REWARDS } from '../constants/rewards.js';
 
 export const getTests = async (req, res) => {
@@ -14,6 +15,7 @@ export const getTests = async (req, res) => {
     const tests = await Test.find({ createdBy: userId })
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
+      .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: tests });
@@ -36,6 +38,7 @@ export const getAllTests = async (req, res) => {
     const tests = await Test.find({})
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
+      .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: tests });
@@ -157,5 +160,72 @@ export const deleteTest = async (req, res) => {
   } catch (error) {
     console.error('Delete test error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete test' });
+  }
+};
+
+/**
+ * Remove a question from a test
+ * DELETE /api/test/:testId/question/:questionId
+ */
+export const removeQuestionFromTest = async (req, res) => {
+  try {
+    const { testId, questionId } = req.params;
+    const userId = req?.userId;
+
+    console.log('🗑️ Remove question from test request:', {
+      testId,
+      questionId,
+      userId
+    });
+
+    if (!userId) {
+      console.log('❌ Remove question failed: User not authenticated');
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Find test and verify ownership
+    const test = await Test.findOne({ _id: testId, createdBy: userId });
+    if (!test) {
+      console.log('❌ Remove question failed: Test not found or access denied', { testId, userId });
+      return res.status(404).json({ success: false, message: 'Test not found or access denied' });
+    }
+
+    // Find question and verify ownership
+    const question = await Question.findOne({ _id: questionId, createdBy: userId });
+    if (!question) {
+      console.log('❌ Remove question failed: Question not found or access denied', { questionId, userId });
+      return res.status(404).json({ success: false, message: 'Question not found or access denied' });
+    }
+
+    // Check if question is in the test
+    if (!test.questions.includes(questionId)) {
+      console.log('❌ Remove question failed: Question not in test', { testId, questionId });
+      return res.status(400).json({ success: false, message: 'Question is not in this test' });
+    }
+
+    // Remove question from test
+    await Test.findByIdAndUpdate(testId, {
+      $pull: { questions: questionId }
+    });
+
+    // Remove test from question
+    await Question.findByIdAndUpdate(questionId, {
+      $pull: { tests: testId }
+    });
+
+    console.log('✅ Question removed from test successfully:', { testId, questionId });
+
+    res.status(200).json({
+      success: true,
+      message: 'Question removed from test successfully',
+      data: {
+        testId,
+        questionId,
+        remainingQuestions: test.questions.length - 1
+      }
+    });
+  } catch (error) {
+    console.error('❌ Remove question from test error:', error);
+    res.status(500).json({ success: false, message: 'Failed to remove question from test' });
   }
 };
