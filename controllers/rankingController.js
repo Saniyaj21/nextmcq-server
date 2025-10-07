@@ -222,7 +222,7 @@ export const getUserRank = async (req, res) => {
 
     // Get user's current data for display
     const currentUser = await User.findById(userId).select(
-      'name email role rewards student teacher'
+      'name email role profileImage rewards student teacher'
     );
 
     if (!currentUser) {
@@ -263,6 +263,7 @@ export const getUserRank = async (req, res) => {
             name: currentUser.name,
             email: currentUser.email,
             role: currentUser.role,
+            profileImage: currentUser.profileImage,
             rewards: {
               coins: currentUser.rewards.coins || 0,
               xp: currentUser.rewards.xp || 0,
