@@ -78,6 +78,7 @@ export const getPublicProfile = async (req, res) => {
       name: user.name || 'Anonymous User',
       email: user.email,
       role: user.role || 'student',
+      subjects: user.subjects || [],
       institute: user.institute,
       referralCode: user.referralCode,
       level: user.rewards.level,

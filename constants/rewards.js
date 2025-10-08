@@ -244,10 +244,10 @@ export const getRankingScoreAggregation = () => {
             ]
           },
           else: {
-            // For teachers: (testsCreated * 10) + (totalAttempts * 10)
+            // For teachers: (testsCreated * 10) + (totalAttemptsOfStudents * 10)
             $add: [
               { $multiply: ['$teacher.testsCreated', 10] },
-              { $multiply: ['$teacher.totalAttempts', 10] }
+              { $multiply: ['$teacher.totalAttemptsOfStudents', 10] }
             ]
           }
         }

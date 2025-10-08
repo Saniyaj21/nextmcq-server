@@ -308,6 +308,7 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         name: 1,
         email: 1,
         role: 1,
+        subjects: 1,
         profileImage: 1,
         institute: 1,
         'rewards.coins': 1,
@@ -319,7 +320,7 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         'teacher.testsCreated': 1,
         'teacher.questionsCreated': 1,
         'teacher.averageRating': 1,
-        'teacher.totalAttempts': 1,
+        'teacher.totalAttemptsOfStudents': 1,
         rankingScore: 1
       }
     }
