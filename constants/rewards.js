@@ -186,6 +186,7 @@ export const calculateSpeedBonus = (timeLimit, actualTime) => {
 };
 
 // Helper function to calculate student streak status based on test submissions
+// Uses calendar date logic instead of 24-hour timestamp calculations
 export const calculateStudentStreakStatus = (lastTestSubmissionAt, currentSubmission) => {
   console.log(`[STREAK_CALC] Input - lastTestSubmissionAt: ${lastTestSubmissionAt}, currentSubmission: ${currentSubmission}`);
 
@@ -198,21 +199,77 @@ export const calculateStudentStreakStatus = (lastTestSubmissionAt, currentSubmis
   const lastSubmission = new Date(lastTestSubmissionAt);
   const currentTime = new Date(currentSubmission);
 
-  // Calculate days between submissions
-  const timeDiff = currentTime.getTime() - lastSubmission.getTime();
-  const daysSinceLast = Math.floor(timeDiff / (1000 * 3600 * 24));
+  // Get calendar dates (YYYY-MM-DD format) to ignore time components
+  const lastSubmissionDate = lastSubmission.toISOString().split('T')[0]; // YYYY-MM-DD
+  const currentSubmissionDate = currentTime.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  console.log(`[STREAK_CALC] Calculation - lastSubmission: ${lastSubmission}, currentTime: ${currentTime}, daysSinceLast: ${daysSinceLast}`);
+  // Calculate the date that would be exactly 1 day before current date
+  const yesterday = new Date(currentTime);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayDate = yesterday.toISOString().split('T')[0];
 
-  // Streak continues if submission is within 1-2 days of last submission
-  // This allows for some flexibility (missed 1 day but came back)
-  const shouldIncrement = daysSinceLast >= 1 && daysSinceLast <= 2;
-  const shouldReset = daysSinceLast > 2;
-  const newStreak = shouldIncrement ? null : 0; // null means increment current streak
+  // Calculate the date that would be exactly 2 days before current date
+  const dayBeforeYesterday = new Date(currentTime);
+  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+  const dayBeforeYesterdayDate = dayBeforeYesterday.toISOString().split('T')[0];
 
-  console.log(`[STREAK_CALC] Result - shouldIncrement: ${shouldIncrement}, shouldReset: ${shouldReset}, newStreak: ${newStreak}`);
+  console.log(`[STREAK_CALC] Date Analysis:`);
+  console.log(`  - Last submission date: ${lastSubmissionDate}`);
+  console.log(`  - Current submission date: ${currentSubmissionDate}`);
+  console.log(`  - Yesterday date: ${yesterdayDate}`);
+  console.log(`  - Day before yesterday: ${dayBeforeYesterdayDate}`);
 
-  return { shouldIncrement, shouldReset, newStreak, daysSinceLast };
+  // Check if last activity was yesterday (maintains streak)
+  const wasYesterday = lastSubmissionDate === yesterdayDate;
+
+  // Check if last activity was day before yesterday (allows one missed day)
+  const wasDayBeforeYesterday = lastSubmissionDate === dayBeforeYesterdayDate;
+
+  // Check if last activity was today (same day - shouldn't happen but handle gracefully)
+  const wasToday = lastSubmissionDate === currentSubmissionDate;
+
+  // Check if last activity was more than 2 days ago (reset streak)
+  const wasMoreThanTwoDaysAgo = lastSubmissionDate < dayBeforeYesterdayDate;
+
+  console.log(`[STREAK_CALC] Activity checks:`);
+  console.log(`  - Was yesterday: ${wasYesterday}`);
+  console.log(`  - Was day before yesterday: ${wasDayBeforeYesterday}`);
+  console.log(`  - Was today: ${wasToday}`);
+  console.log(`  - Was more than 2 days ago: ${wasMoreThanTwoDaysAgo}`);
+
+  let shouldIncrement = false;
+  let shouldReset = false;
+  let newStreak = 0;
+
+  if (wasToday) {
+    // Same day activity - don't change streak (already counted for today)
+    console.log(`[STREAK_CALC] Result - Same day activity, no streak change`);
+    shouldIncrement = false;
+    shouldReset = false;
+    newStreak = null; // Keep current streak
+  } else if (wasYesterday) {
+    // Yesterday's activity - increment streak
+    console.log(`[STREAK_CALC] Result - Yesterday's activity, incrementing streak`);
+    shouldIncrement = true;
+    shouldReset = false;
+    newStreak = null; // Increment current streak
+  } else if (wasDayBeforeYesterday) {
+    // Day before yesterday - allow missed day, increment streak
+    console.log(`[STREAK_CALC] Result - Day before yesterday activity, incrementing streak (missed 1 day)`);
+    shouldIncrement = true;
+    shouldReset = false;
+    newStreak = null; // Increment current streak
+  } else if (wasMoreThanTwoDaysAgo) {
+    // More than 2 days ago - reset streak
+    console.log(`[STREAK_CALC] Result - Activity more than 2 days ago, resetting streak`);
+    shouldIncrement = false;
+    shouldReset = true;
+    newStreak = 0;
+  }
+
+  console.log(`[STREAK_CALC] Final Result - shouldIncrement: ${shouldIncrement}, shouldReset: ${shouldReset}, newStreak: ${newStreak}`);
+
+  return { shouldIncrement, shouldReset, newStreak };
 };
 
 

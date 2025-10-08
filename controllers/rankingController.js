@@ -232,9 +232,10 @@ export const getUserRank = async (req, res) => {
       });
     }
 
-    // Calculate user's ranking score and accuracy
+    // Calculate user's ranking score using the same aggregation as leaderboard
     const accuracy = currentUser.calculateAccuracy();
-    const rankingScore = currentUser.calculateRankingScore();
+    const userRankingData = await User.getUserRanking(userId, category);
+    const rankingScore = userRankingData && userRankingData.length > 0 ? userRankingData[0].score : 0;
 
     // Build student and teacher objects if they exist
     const studentData = currentUser.role === 'student' && currentUser.student ? {

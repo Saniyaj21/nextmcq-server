@@ -379,7 +379,7 @@ export const submitTest = async (req, res) => {
       console.log(`[STREAK_DEBUG] User ${userId} - Last test submission: ${lastActivityAt}, Current time: ${new Date()}`);
 
       const streakStatus = calculateStudentStreakStatus(lastActivityAt, new Date());
-      console.log(`[STREAK_DEBUG] User ${userId} - Streak status: shouldIncrement=${streakStatus.shouldIncrement}, shouldReset=${streakStatus.shouldReset}, newStreak=${streakStatus.newStreak}, daysSinceLast=${streakStatus.daysSinceLast}`);
+      console.log(`[STREAK_DEBUG] User ${userId} - Streak status: shouldIncrement=${streakStatus.shouldIncrement}, shouldReset=${streakStatus.shouldReset}, newStreak=${streakStatus.newStreak}`);
 
       if (streakStatus.shouldIncrement) {
         if (streakStatus.newStreak !== null) {
