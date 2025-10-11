@@ -15,7 +15,7 @@ export const REWARDS = {
     }
   },
 
-  // Speed Bonus (for completing test under 50% of time limit)
+  // Speed Bonus (for completing test under 50% of time limit with 90%+ accuracy)
   SPEED_BONUS: {
     UNDER_50_PERCENT_TIME: {
       coins: 15,

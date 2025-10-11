@@ -12,6 +12,10 @@ Rahul
 - Teacher rewards for test creation (50 coins + 75 XP awarded when teachers create tests)
 - Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
 - Debug logging for student streak system ([STREAK_DEBUG] and [STREAK_CALC] prefixes)
+- Speed bonus accuracy requirement: Users must achieve 90%+ accuracy to earn speed bonus
+
+### Changed
+- Speed bonus now requires minimum 90% accuracy to prevent users with 0% from earning rewards
 
 ### Removed
 - Test completion bonus from reward system (10 coins + 15 XP no longer awarded for completing tests)

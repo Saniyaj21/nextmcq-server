@@ -53,9 +53,12 @@ const calculateTestRewards = (attempt, test) => {
     xp: correctAnswers.length * (isFirstAttempt ? REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.xp : REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.xp)
   };
 
-  // Calculate speed bonus
+  // Calculate speed bonus (only if accuracy >= 90%)
+  const totalQuestions = attempt.answers.length;
+  const accuracy = totalQuestions > 0 ? (correctAnswers.length / totalQuestions) * 100 : 0;
   const timeThreshold = test.timeLimit * 0.5; // 50% of time limit
-  const speedBonus = attempt.timeSpent < timeThreshold
+  const meetsAccuracyRequirement = accuracy >= 90;
+  const speedBonus = (attempt.timeSpent < timeThreshold && meetsAccuracyRequirement)
     ? REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME
     : { coins: 0, xp: 0 };
 
