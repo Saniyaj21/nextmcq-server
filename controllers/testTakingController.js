@@ -56,11 +56,15 @@ const calculateTestRewards = (attempt, test) => {
   // Calculate speed bonus (only if accuracy >= 90%)
   const totalQuestions = attempt.answers.length;
   const accuracy = totalQuestions > 0 ? (correctAnswers.length / totalQuestions) * 100 : 0;
-  const timeThreshold = test.timeLimit * 0.5; // 50% of time limit
+  const timeLimitSeconds = test.timeLimit * 60; // Convert minutes to seconds
+  const timeThresholdSeconds = timeLimitSeconds * 0.5; // 50% of time limit in seconds
   const meetsAccuracyRequirement = accuracy >= 90;
-  const speedBonus = (attempt.timeSpent < timeThreshold && meetsAccuracyRequirement)
+  const speedBonus = (attempt.timeSpent < timeThresholdSeconds && meetsAccuracyRequirement)
     ? REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME
     : { coins: 0, xp: 0 };
+
+  // Debug logging for speed bonus
+  console.log(`[SPEED_BONUS_DEBUG] attemptNumber=${attempt.attemptNumber}, timeSpent=${attempt.timeSpent}s, timeLimit=${test.timeLimit}min (${timeLimitSeconds}s), timeThreshold=${timeThresholdSeconds}s, accuracy=${accuracy.toFixed(2)}%, meetsAccuracy=${meetsAccuracyRequirement}, meetsTime=${attempt.timeSpent < timeThresholdSeconds}, speedBonusAwarded=${speedBonus.coins > 0}`);
 
   return {
     coins: questionRewards.coins + speedBonus.coins,

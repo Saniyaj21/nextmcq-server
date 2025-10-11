@@ -13,9 +13,15 @@ Rahul
 - Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
 - Debug logging for student streak system ([STREAK_DEBUG] and [STREAK_CALC] prefixes)
 - Speed bonus accuracy requirement: Users must achieve 90%+ accuracy to earn speed bonus
+- Debug logging for speed bonus calculation ([SPEED_BONUS_DEBUG] prefix) to troubleshoot reward issues
 
 ### Changed
 - Speed bonus now requires minimum 90% accuracy to prevent users with 0% from earning rewards
+
+### Fixed
+- Critical bug: Speed bonus calculation was comparing minutes to seconds (timeLimit in minutes vs timeSpent in seconds)
+- Speed bonus now correctly converts timeLimit from minutes to seconds before comparison
+- Enhanced debug logging to show both minutes and seconds for timeLimit
 
 ### Removed
 - Test completion bonus from reward system (10 coins + 15 XP no longer awarded for completing tests)
