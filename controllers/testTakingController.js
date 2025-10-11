@@ -1,6 +1,7 @@
 // File: ./controllers/testTakingController.js
 // Controller for test-taking functionality
 
+import mongoose from 'mongoose';
 import Test from '../models/Test.js';
 import TestAttempt from '../models/TestAttempt.js';
 import User from '../models/User.js';
@@ -585,7 +586,14 @@ export const getTestDetails = async (req, res) => {
       }
     }
 
-    // Get user's attempts on this test for enhanced UI
+    // Get user's total attempts count
+    const userTotalAttempts = await TestAttempt.countDocuments({
+      userId,
+      testId,
+      status: 'completed'
+    });
+
+    // Get user's recent attempts for display only (last 5)
     const userAttempts = await TestAttempt.find({
       userId,
       testId,
@@ -593,21 +601,10 @@ export const getTestDetails = async (req, res) => {
     })
     .select('attemptNumber score timeSpent completedAt rewards')
     .sort({ completedAt: -1 })
-    .limit(5); // Get last 5 attempts
+    .limit(5); // Get only last 5 attempts
 
-    // Calculate user statistics
-    const userStats = userAttempts.length > 0 ? {
-      attempts: userAttempts.length,
-      bestScore: Math.max(...userAttempts.map(a => a.score.percentage)),
-      lastAttempt: userAttempts[0].completedAt,
-      averageScore: Math.round(userAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / userAttempts.length),
-      improvement: userAttempts.length > 1 ?
-        userAttempts[0].score.percentage - userAttempts[userAttempts.length - 1].score.percentage : 0,
-      averageTime: Math.round(userAttempts.reduce((sum, a) => sum + a.timeSpent, 0) / userAttempts.length)
-    } : null;
-
-    // Get recent attempts for display (last 3)
-    const recentAttempts = userAttempts.slice(0, 3).map(attempt => ({
+    // Format recent attempts for display
+    const recentAttempts = userAttempts.map(attempt => ({
       attemptNumber: attempt.attemptNumber,
       score: attempt.score.percentage,
       timeSpent: attempt.timeSpent,
@@ -692,7 +689,7 @@ export const getTestDetails = async (req, res) => {
       hasPendingRequest: hasPendingRequest,
 
       // Enhanced data for improved UX
-      userStats,
+      userTotalAttempts,
       recentAttempts,
       topPerformers: formattedTopPerformers,
 
