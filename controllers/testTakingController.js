@@ -55,7 +55,7 @@ const calculateTestRewards = (attempt, test) => {
   };
 
   // Calculate speed bonus (only if accuracy >= 90%)
-  const totalQuestions = attempt.answers.length;
+  const totalQuestions = test.questions.length;
   const accuracy = totalQuestions > 0 ? (correctAnswers.length / totalQuestions) * 100 : 0;
   const timeLimitSeconds = test.timeLimit * 60; // Convert minutes to seconds
   const timeThresholdSeconds = timeLimitSeconds * 0.5; // 50% of time limit in seconds

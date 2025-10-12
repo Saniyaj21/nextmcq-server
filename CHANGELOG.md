@@ -19,6 +19,8 @@ Rahul
 - Speed bonus now requires minimum 90% accuracy to prevent users with 0% from earning rewards
 
 ### Fixed
+- Critical bug: Speed bonus accuracy calculation was using answered questions count instead of total test questions
+- Speed bonus now correctly calculates accuracy against total test questions (test.questions.length) preventing exploitation where students could answer only 1 question correctly and skip others to achieve 100% accuracy
 - Critical bug: Speed bonus calculation was comparing minutes to seconds (timeLimit in minutes vs timeSpent in seconds)
 - Speed bonus now correctly converts timeLimit from minutes to seconds before comparison
 - Enhanced debug logging to show both minutes and seconds for timeLimit
