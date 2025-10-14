@@ -4,6 +4,7 @@ import Banner from './Banner.js';
 import Test from './Test.js';
 import TestAttempt from './TestAttempt.js';
 import Question from './Question.js';
+import Rating from './Rating.js';
 
 export {
   User,
@@ -11,7 +12,8 @@ export {
   Banner,
   Test,
   TestAttempt,
-  Question
+  Question,
+  Rating
 };
 
 export default {
@@ -20,5 +22,6 @@ export default {
   Banner,
   Test,
   TestAttempt,
-  Question
+  Question,
+  Rating
 };

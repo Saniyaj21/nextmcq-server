@@ -60,6 +60,18 @@ const testSchema = new mongoose.Schema({
       min: 0,
       max: 5
     },
+    // Aggregated rating fields for performance
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    totalRatings: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

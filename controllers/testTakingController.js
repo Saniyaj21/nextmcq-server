@@ -6,6 +6,7 @@ import Test from '../models/Test.js';
 import TestAttempt from '../models/TestAttempt.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
+import Rating from '../models/Rating.js';
 import { REWARDS, LEVEL_SYSTEM, calculateStudentStreakStatus } from '../constants/rewards.js';
 import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.js';
 
@@ -672,6 +673,16 @@ export const getTestDetails = async (req, res) => {
       timeSpent: performer.timeSpent
     }));
 
+    // Get user's rating for this test
+    let userRating = null;
+    try {
+      const userRatingDoc = await Rating.findOne({ testId: test._id, userId });
+      userRating = userRatingDoc ? userRatingDoc.rating : null;
+    } catch (ratingError) {
+      console.warn('Failed to fetch user rating:', ratingError);
+      // Continue without user rating data
+    }
+
     // Return enhanced test data with user progress
     const testData = {
       _id: test._id,
@@ -687,6 +698,11 @@ export const getTestDetails = async (req, res) => {
       createdAt: test.createdAt,
       hasAccess: hasAccess,
       hasPendingRequest: hasPendingRequest,
+
+      // Rating data from aggregated fields
+      averageRating: test.averageRating || 0,
+      totalRatings: test.totalRatings || 0,
+      userRating: userRating,
 
       // Enhanced data for improved UX
       userTotalAttempts,

@@ -1,6 +1,7 @@
 import Test from '../models/Test.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
+import Rating from '../models/Rating.js';
 import { REWARDS } from '../constants/rewards.js';
 
 export const getTests = async (req, res) => {
@@ -34,14 +35,54 @@ export const getAllTests = async (req, res) => {
     }
 
     // Get all tests - visibility logic handled in the query
-    // Since user wants ALL tests, we'll return everything
     const tests = await Test.find({})
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
       .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, data: tests });
+    // Get rating statistics for all tests
+    const testIds = tests.map(test => test._id);
+    
+    const ratingStats = await Rating.aggregate([
+      { 
+        $match: { 
+          testId: { $in: testIds }
+        } 
+      },
+      {
+        $group: {
+          _id: '$testId',
+          averageRating: { $avg: '$rating' },
+          totalRatings: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Create a map for quick lookup
+    const ratingMap = new Map();
+    ratingStats.forEach(stat => {
+      ratingMap.set(stat._id.toString(), {
+        averageRating: Math.round(stat.averageRating * 10) / 10,
+        totalRatings: stat.totalRatings
+      });
+    });
+
+    // Add rating information to each test
+    const testsWithRatings = tests.map(test => {
+      const testObj = test.toObject();
+      const ratingInfo = ratingMap.get(test._id.toString());
+      
+      return {
+        ...testObj,
+        averageRating: ratingInfo?.averageRating || 0,
+        totalRatings: ratingInfo?.totalRatings || 0,
+        // Keep the old rating field for backward compatibility
+        rating: ratingInfo?.averageRating || 0
+      };
+    });
+
+    res.status(200).json({ success: true, data: testsWithRatings });
   } catch (error) {
     console.error('Get all tests error:', error);
     res.status(500).json({ success: false, message: 'Failed to get tests' });

@@ -8,6 +8,7 @@ import testTakingRoutes from './routes/testTaking.js';
 import questionRoutes from './routes/question.js';
 import rankingRoutes from './routes/ranking.js';
 import userRoutes from './routes/user.js';
+import ratingRoutes from './routes/rating.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
@@ -38,6 +39,7 @@ app.use('/api/test-taking', testTakingRoutes);
 app.use('/api/question', questionRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/rating', ratingRoutes);
 // Basic route
 app.get('/', (req, res) => {
     res.json({

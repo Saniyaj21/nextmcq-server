@@ -12,27 +12,8 @@ Rahul
 - Teacher rewards for test creation (50 coins + 75 XP awarded when teachers create tests)
 - Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
 - Debug logging for student streak system ([STREAK_DEBUG] and [STREAK_CALC] prefixes)
-- Speed bonus accuracy requirement: Users must achieve 90%+ accuracy to earn speed bonus
-- Debug logging for speed bonus calculation ([SPEED_BONUS_DEBUG] prefix) to troubleshoot reward issues
-
-### Changed
-- Speed bonus now requires minimum 90% accuracy to prevent users with 0% from earning rewards
-
-### Fixed
-- Critical bug: Speed bonus accuracy calculation was using answered questions count instead of total test questions
-- Speed bonus now correctly calculates accuracy against total test questions (test.questions.length) preventing exploitation where students could answer only 1 question correctly and skip others to achieve 100% accuracy
-- Critical bug: Speed bonus calculation was comparing minutes to seconds (timeLimit in minutes vs timeSpent in seconds)
-- Speed bonus now correctly converts timeLimit from minutes to seconds before comparison
-- Enhanced debug logging to show both minutes and seconds for timeLimit
-
-### Changed
-- Test details endpoint now returns only last 5 recent attempts (without expensive stats calculations)
-- Added userTotalAttempts field to show total count of user's completed attempts
-- Simplified user progress data to improve performance and reduce database load
 
 ### Removed
-- User progress stats calculations (best score, average score/time) to improve performance
-- Removed expensive aggregation queries that were causing slowdowns in test details endpoint
 - Test completion bonus from reward system (10 coins + 15 XP no longer awarded for completing tests)
 - Streak milestone bonuses (1,000-5,000 coins + 500-2,000 XP for 50/100/200 day streaks)
 - Daily activity rewards (5 coins + 10 XP for login, 15 coins + 20 XP for first test of day)
