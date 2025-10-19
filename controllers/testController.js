@@ -33,56 +33,127 @@ export const getAllTests = async (req, res) => {
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
+    // Server-side filtering/sorting/pagination
+    const {
+      search = '',
+      subject,
+      minRating = '0',
+      sortBy = 'recent',
+      page = '1',
+      limit = '20'
+    } = req.query;
 
-    // Get all tests - visibility logic handled in the query
-    const tests = await Test.find({})
-      .populate('createdBy', 'name email')
-      .populate('allowedUsers', 'name email')
-      .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
-      .sort({ createdAt: -1 });
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const minRatingNum = parseFloat(minRating) || 0;
 
-    // Get rating statistics for all tests
-    const testIds = tests.map(test => test._id);
-    
-    const ratingStats = await Rating.aggregate([
-      { 
-        $match: { 
-          testId: { $in: testIds }
-        } 
-      },
-      {
-        $group: {
-          _id: '$testId',
-          averageRating: { $avg: '$rating' },
-          totalRatings: { $sum: 1 }
-        }
+    // Build aggregation pipeline
+    const pipeline = [];
+
+    // Visibility: public OR allowedUsers contains userId OR createdBy == userId
+    pipeline.push({
+      $match: {
+        $or: [
+          { isPublic: true },
+          { allowedUsers: { $in: [req.userId] } },
+          { createdBy: req.userId }
+        ]
       }
-    ]);
+    });
 
-    // Create a map for quick lookup
-    const ratingMap = new Map();
-    ratingStats.forEach(stat => {
-      ratingMap.set(stat._id.toString(), {
-        averageRating: Math.round(stat.averageRating * 10) / 10,
-        totalRatings: stat.totalRatings
+    // Lookup creator details
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'createdBy',
+        foreignField: '_id',
+        as: 'creator'
+      }
+    }, { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } });
+
+    // Text search on title / subject / creator name
+    if (search && String(search).trim().length > 0) {
+      const regex = new RegExp(String(search).trim(), 'i');
+      pipeline.push({
+        $match: {
+          $or: [
+            { title: { $regex: regex } },
+            { subject: { $regex: regex } },
+            { 'creator.name': { $regex: regex } }
+          ]
+        }
       });
+    }
+
+    // Filter by subject
+    if (subject && subject !== 'All') {
+      pipeline.push({ $match: { subject } });
+    }
+
+    // Lookup ratings array for aggregation
+    pipeline.push({
+      $lookup: {
+        from: 'ratings',
+        localField: '_id',
+        foreignField: 'testId',
+        as: 'ratings'
+      }
     });
 
-    // Add rating information to each test
-    const testsWithRatings = tests.map(test => {
-      const testObj = test.toObject();
-      const ratingInfo = ratingMap.get(test._id.toString());
-      
-      return {
-        ...testObj,
-        averageRating: ratingInfo?.averageRating || 0,
-        totalRatings: ratingInfo?.totalRatings || 0,
-        // Keep the old rating field for backward compatibility
-        rating: ratingInfo?.averageRating || 0
-      };
+    // Compute averageRating and totalRatings
+    pipeline.push({
+      $addFields: {
+        averageRating: { $cond: [{ $gt: [{ $size: '$ratings' }, 0] }, { $round: [{ $avg: '$ratings.rating' }, 1] }, 0] },
+        totalRatings: { $size: '$ratings' }
+      }
     });
 
-    res.status(200).json({ success: true, data: testsWithRatings });
+    // Filter by minRating
+    if (minRatingNum > 0) {
+      pipeline.push({ $match: { averageRating: { $gte: minRatingNum } } });
+    }
+
+    // Sorting
+    const sortStage = {};
+    if (sortBy === 'recent') sortStage.createdAt = -1;
+    else if (sortBy === 'oldest') sortStage.createdAt = 1;
+    else if (sortBy === 'popular') sortStage.attemptsCount = -1;
+    else if (sortBy === 'rating') sortStage.averageRating = -1;
+    else sortStage.createdAt = -1;
+
+    // Facet for pagination + total count
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [
+          { $sort: sortStage },
+          { $skip: (pageNum - 1) * limitNum },
+          { $limit: limitNum },
+          // Include creator fields in output
+          { $project: {
+            title: 1, description: 1, subject:1, chapter:1, timeLimit:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
+            createdBy: { _id: '$creator._id', name: '$creator.name', email: '$creator.email', profileImage: '$creator.profileImage' },
+            averageRating: 1, totalRatings: 1
+          } }
+        ]
+      }
+    });
+
+    const aggResult = await Test.aggregate(pipeline).allowDiskUse(true);
+
+    const metadata = aggResult[0].metadata[0] || { total: 0 };
+    const data = aggResult[0].data || [];
+
+    res.status(200).json({
+      success: true,
+      data,
+      meta: {
+        total: metadata.total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil((metadata.total || 0) / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Get all tests error:', error);
     res.status(500).json({ success: false, message: 'Failed to get tests' });
