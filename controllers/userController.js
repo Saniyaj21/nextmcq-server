@@ -1,4 +1,7 @@
 import User from '../models/User.js';
+import Test from '../models/Test.js';
+import Question from '../models/Question.js';
+import TestAttempt from '../models/TestAttempt.js';
 import { v2 as cloudinary } from 'cloudinary';
 import validator from 'validator';
 
@@ -272,6 +275,167 @@ export const uploadProfileImage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload profile image to Cloudinary',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Get teacher statistics
+ * GET /api/user/teacher-stats
+ */
+export const getTeacherStats = async (req, res) => {
+  try {
+    const teacherId = req.user._id;
+
+    // Verify user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only teachers can access teacher statistics'
+      });
+    }
+
+    // Get all tests created by this teacher
+    const tests = await Test.find({ createdBy: teacherId })
+      .select('_id title isPublic attemptsCount createdAt')
+      .lean();
+
+    const testIds = tests.map(t => t._id);
+
+    // Get all questions created by this teacher
+    const totalQuestions = await Question.countDocuments({ createdBy: teacherId });
+
+    // Get all test attempts for teacher's tests
+    const testAttempts = await TestAttempt.find({ 
+      testId: { $in: testIds },
+      status: 'completed'
+    })
+      .select('userId score timeSpent completedAt')
+      .populate('userId', 'name email')
+      .lean();
+
+    // Calculate statistics
+    const totalTests = tests.length;
+    const publicTests = tests.filter(t => t.isPublic).length;
+    const privateTests = totalTests - publicTests;
+
+    // Total attempts across all tests
+    const totalAttempts = testAttempts.length;
+
+    // Unique students who have taken tests
+    const uniqueStudents = new Set(testAttempts.map(a => a.userId._id.toString())).size;
+
+    // Average score across all attempts
+    const avgScore = testAttempts.length > 0
+      ? testAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / testAttempts.length
+      : 0;
+
+    // Recent activity (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentAttempts = testAttempts.filter(
+      a => new Date(a.completedAt) >= thirtyDaysAgo
+    ).length;
+
+    const recentTests = tests.filter(
+      t => new Date(t.createdAt) >= thirtyDaysAgo
+    ).length;
+
+    // Most popular test (by attempts)
+    const testAttemptsCount = {};
+    testAttempts.forEach(attempt => {
+      const testId = attempt.testId?.toString();
+      if (testId) {
+        testAttemptsCount[testId] = (testAttemptsCount[testId] || 0) + 1;
+      }
+    });
+
+    let mostPopularTest = null;
+    if (Object.keys(testAttemptsCount).length > 0) {
+      const mostPopularTestId = Object.keys(testAttemptsCount).reduce((a, b) =>
+        testAttemptsCount[a] > testAttemptsCount[b] ? a : b
+      );
+      const popularTest = tests.find(t => t._id.toString() === mostPopularTestId);
+      if (popularTest) {
+        mostPopularTest = {
+          _id: popularTest._id,
+          title: popularTest.title,
+          attempts: testAttemptsCount[mostPopularTestId]
+        };
+      }
+    }
+
+    // Recent test attempts (last 10)
+    const recentTestAttempts = testAttempts
+      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+      .slice(0, 10)
+      .map(attempt => ({
+        studentName: attempt.userId?.name || attempt.userId?.email || 'Unknown',
+        score: attempt.score.percentage,
+        timeSpent: attempt.timeSpent,
+        completedAt: attempt.completedAt
+      }));
+
+    // Activity by day (last 7 days)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const attemptsOnDay = testAttempts.filter(a => {
+        const attemptDate = new Date(a.completedAt);
+        return attemptDate >= date && attemptDate < nextDate;
+      }).length;
+
+      last7Days.push({
+        date: date.toISOString().split('T')[0],
+        attempts: attemptsOnDay
+      });
+    }
+
+    // Return comprehensive stats
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalTests,
+          publicTests,
+          privateTests,
+          totalQuestions,
+          totalAttempts,
+          uniqueStudents,
+          averageScore: Math.round(avgScore * 10) / 10
+        },
+        recentActivity: {
+          last30Days: {
+            attempts: recentAttempts,
+            testsCreated: recentTests
+          },
+          last7DaysChart: last7Days
+        },
+        mostPopularTest,
+        recentTestAttempts,
+        teacher: {
+          name: req.user.name,
+          email: req.user.email,
+          rewards: req.user.rewards,
+          testsCreated: req.user.teacher?.testsCreated || 0,
+          questionsCreated: req.user.teacher?.questionsCreated || 0
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get Teacher Stats Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch teacher statistics',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

@@ -50,16 +50,7 @@ export const getAllTests = async (req, res) => {
     // Build aggregation pipeline
     const pipeline = [];
 
-    // Visibility: public OR allowedUsers contains userId OR createdBy == userId
-    pipeline.push({
-      $match: {
-        $or: [
-          { isPublic: true },
-          { allowedUsers: { $in: [req.userId] } },
-          { createdBy: req.userId }
-        ]
-      }
-    });
+    // No visibility restrictions - all authenticated users can see all tests
 
     // Lookup creator details
     pipeline.push({
@@ -169,6 +160,28 @@ export const createTest = async (req, res) => {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
+    // Validate time limit
+    if (timeLimit !== undefined) {
+      if (!Number.isInteger(timeLimit)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit must be a whole number' 
+        });
+      }
+      if (timeLimit < 1) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit must be at least 1 minute' 
+        });
+      }
+      if (timeLimit > 60) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit cannot exceed 60 minutes (1 hour)' 
+        });
+      }
+    }
+
     const test = await Test.create({
       title,
       description,
@@ -216,6 +229,28 @@ export const updateTest = async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate time limit if provided
+    if (timeLimit !== undefined) {
+      if (!Number.isInteger(timeLimit)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit must be a whole number' 
+        });
+      }
+      if (timeLimit < 1) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit must be at least 1 minute' 
+        });
+      }
+      if (timeLimit > 60) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Time limit cannot exceed 60 minutes (1 hour)' 
+        });
+      }
     }
 
     // Find test and verify ownership

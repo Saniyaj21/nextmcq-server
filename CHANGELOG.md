@@ -8,6 +8,19 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+- API endpoint `/api/test-taking/request-access/:testId` for students to request access to private tests
+- Test time limit validation in createTest and updateTest endpoints (1-60 minutes range)
+- API endpoint `/api/invites/teacher-requests` for retrieving pending requests and allowed users for teacher's private tests
+- API endpoint `/api/invites/approve` for approving pending access requests
+- API endpoint `/api/invites/reject` for rejecting pending access requests
+- API endpoint `/api/invites/remove-access` for removing allowed users from private tests
+- API endpoint `/api/invites/invite-user` for directly inviting users by email to private tests
+- Invite controller with comprehensive access management for private tests
+- Invite routes with authentication middleware for secure access
+- Support for managing allowedUsers and pendingRequests arrays in Test model
+- API endpoint `/api/user/teacher-stats` for retrieving comprehensive teacher statistics
+- Teacher statistics controller `getTeacherStats` with aggregated data from tests, questions, and attempts
+- Teacher stats include: overview (tests, questions, attempts, students, avg score), recent activity (last 30 days), most popular test, recent attempts, and activity chart (last 7 days)
 Rahul
 - Teacher rewards for test creation (50 coins + 75 XP awarded when teachers create tests)
 - Student streak system: Students maintain streaks by submitting at least 1 test daily (fixed first-time user streak initialization)
@@ -27,6 +40,9 @@ Rahul
 - Frontend login handler updated to use complete server response instead of hardcoded minimal user data
 
 ### Changed
+- Maximum test time limit reduced from 180 minutes (3 hours) to 60 minutes (1 hour)
+- Test model now enforces timeLimit constraints: minimum 1 minute, maximum 60 minutes, must be whole numbers
+- Removed access restrictions from getAllTests endpoint - all authenticated users can now view all tests regardless of visibility settings (isPublic, allowedUsers, createdBy)
 - Student ranking score formula adjusted to favor consistency: (Total Tests × 20) + (Accuracy % × 5)
 - Reduced accuracy weight from 10 to 5, increased test weight from 10 to 20 to prevent new users with perfect scores from beating experienced users
 

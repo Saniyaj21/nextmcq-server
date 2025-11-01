@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { SYSTEM_LIMITS } from '../constants/rewards.js';
 
 /**
  * Test Schema
@@ -34,7 +35,15 @@ const testSchema = new mongoose.Schema({
     },
     timeLimit: {
       type: Number,
-      default: 0
+      required: [true, 'Please provide a time limit'],
+      min: [SYSTEM_LIMITS.TEST_TIME_LIMIT.MIN, `Time limit must be at least ${SYSTEM_LIMITS.TEST_TIME_LIMIT.MIN} minute`],
+      max: [SYSTEM_LIMITS.TEST_TIME_LIMIT.MAX, `Time limit cannot exceed ${SYSTEM_LIMITS.TEST_TIME_LIMIT.MAX} minutes (${Math.floor(SYSTEM_LIMITS.TEST_TIME_LIMIT.MAX / 60)} hours)`],
+      validate: {
+        validator: function(value) {
+          return Number.isInteger(value);
+        },
+        message: 'Time limit must be a whole number'
+      }
     },
     isPublic: {
       type: Boolean,

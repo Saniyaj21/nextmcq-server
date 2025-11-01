@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPublicProfile, uploadProfileImage, searchUsers } from '../controllers/userController.js';
+import { getPublicProfile, uploadProfileImage, searchUsers, getTeacherStats } from '../controllers/userController.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -9,6 +9,7 @@ router.get('/public-profile/:userId', getPublicProfile);  // GET /api/user/publi
 
 // Protected routes (authentication required)
 router.get('/search', authenticateUser, searchUsers);  // GET /api/user/search?q=term - Search users
+router.get('/teacher-stats', authenticateUser, getTeacherStats);  // GET /api/user/teacher-stats
 router.post('/upload-profile-image', authenticateUser, uploadProfileImage);  // POST /api/user/upload-profile-image
 
 export default router;

@@ -143,6 +143,13 @@ export const SYSTEM_LIMITS = {
   // Test attempt limits
   MAX_TEST_ATTEMPTS_PER_DAY: 50,
 
+  // Test time limits (in minutes)
+  TEST_TIME_LIMIT: {
+    MIN: 1,        // Minimum 1 minute
+    MAX: 60,       // Maximum 1 hour (60 minutes)
+    DEFAULT: 30    // Default 30 minutes if not specified
+  },
+
   // Referral limits
   MAX_REFERRALS_PER_DAY: 10,
 
