@@ -243,15 +243,22 @@ export const updateQuestion = async (req, res) => {
     });
 
     // Update test relationships
-    const newTests = validTests;
-    const testsToAdd = newTests.filter(testId => !previousTests.includes(testId));
-    const testsToRemove = previousTests.filter(testId => !newTests.includes(testId));
+    // Convert previousTests ObjectIds to strings for proper comparison
+    const previousTestIds = previousTests.map(testId => testId.toString());
+    const newTests = validTests; // Already strings
+    
+    const testsToAdd = newTests.filter(testId => !previousTestIds.includes(testId));
+    const testsToRemove = previousTestIds.filter(testId => !newTests.includes(testId));
 
     console.log('🔗 Updating test relationships:', {
       previousTests: previousTests.length,
+      previousTestIds,
       newTests: newTests.length,
+      newTestIds: newTests,
       testsToAdd: testsToAdd.length,
-      testsToRemove: testsToRemove.length
+      testsToAddIds: testsToAdd,
+      testsToRemove: testsToRemove.length,
+      testsToRemoveIds: testsToRemove
     });
 
     // Add question to new tests

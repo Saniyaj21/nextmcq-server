@@ -7,6 +7,12 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Fixed
+- Critical bug: Fixed question-test link breaking when editing questions due to ObjectId vs string comparison issue
+- Bug: updateQuestion controller now correctly converts ObjectId arrays to strings before comparing test relationships
+- Bug: Questions now properly maintain their test associations when edited (no more broken links)
+- Bug: Added detailed logging to track test relationship updates for debugging
+
 ### Added
 - API endpoint `/api/test-taking/request-access/:testId` for students to request access to private tests
 - Test time limit validation in createTest and updateTest endpoints (1-60 minutes range)
