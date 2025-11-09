@@ -158,8 +158,7 @@ export const verifyOTP = async (req, res) => {
           rewards: {
             coins: updatedUser.rewards?.coins || 0,
             xp: updatedUser.rewards?.xp || 0,
-            level: updatedUser.calculateLevel(),
-            loginStreak: updatedUser.rewards?.loginStreak || 0
+            level: updatedUser.calculateLevel()
           }
         },
         isNewUser: isNewUser
@@ -411,8 +410,7 @@ export const getProfile = async (req, res) => {
           rewards: {
             coins: user.rewards.coins || 0,
             xp: user.rewards.xp || 0,
-            level: user.calculateLevel(),
-            loginStreak: user.rewards.loginStreak || 0
+            level: user.calculateLevel()
           },
           student: {
             totalTests: user.student.totalTests || 0,
@@ -524,8 +522,7 @@ export const updateProfile = async (req, res) => {
           rewards: {
             coins: updatedUser.rewards.coins || 0,
             xp: updatedUser.rewards.xp || 0,
-            level: updatedUser.calculateLevel(),
-            loginStreak: updatedUser.rewards.loginStreak || 0
+            level: updatedUser.calculateLevel()
           },
           createdAt: updatedUser.createdAt,
           updatedAt: updatedUser.updatedAt

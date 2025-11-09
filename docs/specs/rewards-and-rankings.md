@@ -7,7 +7,6 @@
 - **Earning Methods**: 
   - Test completion
   - Referral rewards
-  - Daily login bonuses
   - Ranking rewards
 - **Usage**:
   - Unlock premium tests
@@ -19,7 +18,6 @@
 - **Earning Methods**:
   - Test attempts (regardless of score)
   - Correct answers
-  - Daily activity streaks
   - Profile completion
 - **Usage**:
   - Level progression 
@@ -68,13 +66,6 @@
 |----------|-------|-----|
 | Daily Login | 5 | 10 |
 | First Test of Day | 15 | 20 |
-
-### **Streak Bonuses**
-| Streak Days | Coins | XP |
-|-------------|-------|-----|
-| 50 days | 1000 | 500 |
-| 100 days | 2500 | 1000 |
-| 200 days | 5000 | 2000 |
 
 ### **Referral Rewards**
 | Event | Referrer | Referee |
@@ -134,7 +125,6 @@ Example:
     correctAnswers: { type: Number, default: 0 },
     totalQuestions: { type: Number, default: 0 },
     lastLoginDate: Date,
-    loginStreak: { type: Number, default: 0 }
   },
   referredBy: { type: ObjectId, ref: 'User' },
   referralCode: { type: String, unique: true }

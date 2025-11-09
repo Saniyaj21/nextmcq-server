@@ -268,8 +268,7 @@ export const getUserRank = async (req, res) => {
             rewards: {
               coins: currentUser.rewards.coins || 0,
               xp: currentUser.rewards.xp || 0,
-              level: currentUser.calculateLevel(),
-              loginStreak: currentUser.rewards.loginStreak || 0
+              level: currentUser.calculateLevel()
             },
             ...(studentData && { student: studentData }),
             ...(teacherData && { teacher: teacherData }),

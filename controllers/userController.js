@@ -86,7 +86,6 @@ export const getPublicProfile = async (req, res) => {
       referralCode: user.referralCode,
       level: user.rewards.level,
       accuracy: accuracy,
-      streak: user.rewards.loginStreak,
       testsCompleted: user.role === 'student' ? (user.student?.totalTests || 0) : (user.teacher?.testsCreated || 0),
       globalRank: globalRank,
       rankingScore: rankingScore,
@@ -424,7 +423,11 @@ export const getTeacherStats = async (req, res) => {
         teacher: {
           name: req.user.name,
           email: req.user.email,
-          rewards: req.user.rewards,
+          rewards: {
+            coins: req.user.rewards?.coins || 0,
+            xp: req.user.rewards?.xp || 0,
+            level: req.user.rewards?.level || 1
+          },
           testsCreated: req.user.teacher?.testsCreated || 0,
           questionsCreated: req.user.teacher?.questionsCreated || 0
         }

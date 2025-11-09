@@ -116,11 +116,6 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 1,
       min: 1
-    },
-    loginStreak: {
-      type: Number,
-      default: 0,
-      min: 0
     }
   },
   // Student-specific 

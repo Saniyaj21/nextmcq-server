@@ -154,7 +154,6 @@ The server implements a comprehensive gamification system with:
 - **Coins**: Primary currency earned through activities
 - **XP**: Experience points for level progression
 - **Levels**: Automatic level calculation based on XP
-- **Streaks**: Daily activity bonuses
 - **Leaderboards**: Real-time ranking calculations
 
 ### **Reward Calculation Logic**
@@ -184,7 +183,7 @@ const calculateTestRewards = (isFirstAttempt, accuracy) => {
 #### **User Model**
 - Authentication (email, OTP, JWT)
 - Profile (name, role, institute, subjects)
-- Rewards (coins, XP, level, streaks)
+- Rewards (coins, XP, level)
 - Performance stats (tests taken, accuracy)
 - Social features (referrals)
 
