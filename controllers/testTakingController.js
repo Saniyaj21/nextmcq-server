@@ -7,6 +7,7 @@ import TestAttempt from '../models/TestAttempt.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
 import Rating from '../models/Rating.js';
+import Post from '../models/Post.js';
 import { REWARDS, LEVEL_SYSTEM } from '../constants/rewards.js';
 import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.js';
 
@@ -392,6 +393,29 @@ export const submitTest = async (req, res) => {
 
     // Distribute teacher rewards
     await distributeTeacherRewards(attempt.testId._id, attempt);
+
+    // Create post for student test attempt
+    try {
+      await Post.create({
+        type: 'student_test_attempt',
+        creator: userId,
+        description: `${user.name || 'Student'} completed ${attempt.testId.title || 'a test'}`,
+        data: {
+          attemptId: attempt._id,
+          testId: attempt.testId._id,
+          score: {
+            correct: correctCount,
+            total: totalQuestions,
+            percentage
+          },
+          rewards: attempt.rewards,
+          timeSpent: attempt.timeSpent,
+          completedAt: attempt.completedAt
+        }
+      });
+    } catch (postError) {
+      console.error('Failed to create student_test_attempt post:', postError);
+    }
 
     console.log(`Test completed: attemptId=${attemptId}, score=${correctCount}/${totalQuestions}, timeSpent=${validatedTimeSpent}s, rewards=${rewards.coins}c ${rewards.xp}xp`);
 

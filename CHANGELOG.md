@@ -14,6 +14,10 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - Bug: Added detailed logging to track test relationship updates for debugging
 
 ### Added
+- Added: Lightweight `Post` model with enum-backed post types (`teacher_test_created`, `student_test_attempt`), optional creator reference, and flexible payload data
+- Added: Automatic `student_test_attempt` post creation when students submit tests
+- Added: `/api/posts` endpoint for authenticated users to fetch recent posts
+- Changed: `/api/posts` now returns the latest 30 posts
 - API endpoint `/api/test-taking/request-access/:testId` for students to request access to private tests
 - Test time limit validation in createTest and updateTest endpoints (1-60 minutes range)
 - API endpoint `/api/invites/teacher-requests` for retrieving pending requests and allowed users for teacher's private tests

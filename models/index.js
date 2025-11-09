@@ -5,6 +5,7 @@ import Test from './Test.js';
 import TestAttempt from './TestAttempt.js';
 import Question from './Question.js';
 import Rating from './Rating.js';
+import Post from './Post.js';
 
 export {
   User,
@@ -13,7 +14,8 @@ export {
   Test,
   TestAttempt,
   Question,
-  Rating
+  Rating,
+  Post
 };
 
 export default {
@@ -23,5 +25,6 @@ export default {
   Test,
   TestAttempt,
   Question,
-  Rating
+  Rating,
+  Post
 };

@@ -10,6 +10,7 @@ import rankingRoutes from './routes/ranking.js';
 import userRoutes from './routes/user.js';
 import ratingRoutes from './routes/rating.js';
 import inviteRoutes from './routes/invite.js';
+import postRoutes from './routes/post.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
@@ -42,6 +43,7 @@ app.use('/api/ranking', rankingRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/posts', postRoutes);
 // Basic route
 app.get('/', (req, res) => {
     res.json({
