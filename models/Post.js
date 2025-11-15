@@ -1,7 +1,7 @@
 // File: server/models/Post.js
 import mongoose from 'mongoose';
 
-const POST_TYPES = ['teacher_test_created', 'student_test_attempt'];
+const POST_TYPES = ['teacher_test_created', 'student_test_attempt', 'user_joined'];
 
 const postSchema = new mongoose.Schema(
   {
@@ -25,6 +25,13 @@ const postSchema = new mongoose.Schema(
     description: {
       type: String,
       trim: true,
+      default: ''
+    },
+    title: {
+      type: String,
+      trim: true,
+      required: false,
+      index: true,
       default: ''
     }
   },

@@ -2,6 +2,7 @@ import Test from '../models/Test.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
 import Rating from '../models/Rating.js';
+import Post from '../models/Post.js';
 import { REWARDS } from '../constants/rewards.js';
 
 export const getTests = async (req, res) => {
@@ -213,6 +214,29 @@ export const createTest = async (req, res) => {
     }
 
     console.log(`Teacher rewards distributed for test creation: userId=${createdBy}, coins=${teacherReward.coins}, xp=${teacherReward.xp}`);
+
+    // Create post for teacher test creation
+    try {
+      const teacher = await User.findById(createdBy);
+      await Post.create({
+        type: 'teacher_test_created',
+        title: 'New Test Published',
+        creator: createdBy,
+        description: `${teacher?.name || 'Teacher'} published a new test: ${test.title}`,
+        data: {
+          testId: test._id,
+          testTitle: test.title,
+          subject: test.subject,
+          chapter: test.chapter,
+          isPublic: test.isPublic,
+          timeLimit: test.timeLimit,
+          questionsCount: test.questions?.length || 0
+        }
+      });
+    } catch (postError) {
+      console.error('Failed to create teacher_test_created post:', postError);
+      // Don't fail test creation if post creation fails
+    }
 
     res.status(201).json({ success: true, data: { test } });
   } catch (error) {

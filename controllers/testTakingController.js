@@ -398,6 +398,7 @@ export const submitTest = async (req, res) => {
     try {
       await Post.create({
         type: 'student_test_attempt',
+        title: 'Test Attempt Completed',
         creator: userId,
         description: `${user.name || 'Student'} completed ${attempt.testId.title || 'a test'}`,
         data: {

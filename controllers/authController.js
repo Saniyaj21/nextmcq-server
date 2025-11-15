@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Post from '../models/Post.js';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { sendEmail } from '../utils/sendMail.js';
@@ -330,6 +331,32 @@ export const completeOnboarding = async (req, res) => {
         console.error('Error processing referral rewards:', error);
         // Don't fail onboarding if referral processing fails
       }
+    }
+
+    // Create post for new user joining
+    try {
+      const roleLabel = updatedUser.role === 'teacher' ? 'teacher' : 'student';
+      await Post.create({
+        type: 'user_joined',
+        title: 'Welcome to NextMCQ! 🎉',
+        creator: userId,
+        description: `${updatedUser.name} joined NextMCQ as a ${roleLabel}! 🎉`,
+        data: {
+          userId: userId,
+          name: updatedUser.name,
+          role: updatedUser.role,
+          subjects: updatedUser.subjects || [],
+          hasReferrer: !!referrer,
+          referrerId: referrer?._id || null,
+          referralRewards: referrer ? {
+            referrer: REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER,
+            referee: REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE
+          } : null
+        }
+      });
+    } catch (postError) {
+      console.error('Failed to create user_joined post:', postError);
+      // Don't fail onboarding if post creation fails
     }
 
     res.status(200).json({
