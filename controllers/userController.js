@@ -211,7 +211,6 @@ export const uploadProfileImage = async (req, res) => {
     if (user.profileImage && user.profileImage.publicId) {
       try {
         await cloudinary.uploader.destroy(user.profileImage.publicId);
-        console.log('Old profile image deleted from Cloudinary:', user.profileImage.publicId);
       } catch (deleteError) {
         console.warn('Failed to delete old profile image:', deleteError.message);
         // Continue with upload even if delete fails
@@ -246,8 +245,6 @@ export const uploadProfileImage = async (req, res) => {
       uploadStream.end(buffer);
     });
 
-    console.log('Cloudinary upload result:', uploadResult);
-
     // Update user's profile image in database
     user.profileImage = {
       url: uploadResult.secure_url,
@@ -257,8 +254,6 @@ export const uploadProfileImage = async (req, res) => {
 
     // Save the updated user
     await user.save();
-
-    console.log('Profile image saved for user:', userId);
 
     res.status(200).json({
       success: true,

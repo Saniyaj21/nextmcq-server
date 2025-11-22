@@ -225,19 +225,13 @@ userSchema.methods.calculateAccuracy = function () {
 
 userSchema.methods.calculateRankingScore = function () {
   if (this.role === 'student') {
-    // Calculate accuracy: (correctAnswers / totalQuestions) * 100
-    const accuracy = this.student.totalQuestions > 0
-      ? Math.round((this.student.correctAnswers / this.student.totalQuestions) * 100)
-      : 0;
-
-    // Return: (totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT)
-    const { TESTS_WEIGHT, ACCURACY_WEIGHT } = RANKING_SYSTEM.SCORE_FORMULA;
-    return (this.student.totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT);
+    // Student ranking: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
+    // Fast calculation: No division, no rounding - optimized for performance
+    const { TESTS_WEIGHT, CORRECT_ANSWERS_WEIGHT } = RANKING_SYSTEM.SCORE_FORMULA;
+    return (this.student.totalTests * TESTS_WEIGHT) + (this.student.correctAnswers * CORRECT_ANSWERS_WEIGHT);
   } else if (this.role === 'teacher') {
-    // For teachers: (testsCreated * 10) + (totalAttemptsOfStudents * 10)
-    const testsScore = this.teacher.testsCreated * 10;
-    const attemptsScore = this.teacher.totalAttemptsOfStudents * 10;
-    return testsScore + attemptsScore;
+    // For teachers: totalAttemptsOfStudents × 1
+    return this.teacher.totalAttemptsOfStudents * 1;
   }
   return 0;
 };
@@ -266,11 +260,6 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
   // Second stage: Lookup institute if needed
   if (category === 'institute' && instituteId) {
     const instituteObjectId = new mongoose.Types.ObjectId(instituteId);
-    console.log('Adding institute filter:', {
-      category,
-      instituteId,
-      instituteObjectId
-    });
     pipeline.push({
       $match: {
         institute: instituteObjectId

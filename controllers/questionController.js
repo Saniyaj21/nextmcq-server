@@ -147,35 +147,15 @@ export const updateQuestion = async (req, res) => {
     const { question, options, correctAnswer, explanation, tests } = req.body;
     const userId = req?.userId;
 
-    console.log('🔄 Update question request received:', {
-      questionId,
-      userId,
-      requestData: {
-        question: question?.substring(0, 50) + (question?.length > 50 ? '...' : ''),
-        options: options?.map(opt => opt?.substring(0, 20) + (opt?.length > 20 ? '...' : '')),
-        correctAnswer,
-        explanation: explanation?.substring(0, 30) + (explanation?.length > 30 ? '...' : ''),
-        tests: tests
-      }
-    });
-
     if (!userId) {
-      console.log('❌ Update question failed: User not authenticated');
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
     // Find question and verify ownership
     const existingQuestion = await Question.findOne({ _id: questionId, createdBy: userId });
     if (!existingQuestion) {
-      console.log('❌ Update question failed: Question not found or access denied', { questionId, userId });
       return res.status(404).json({ success: false, message: 'Question not found or access denied' });
     }
-
-    console.log('✅ Found existing question:', {
-      questionId: existingQuestion._id,
-      currentQuestion: existingQuestion.question?.substring(0, 50) + '...',
-      currentTests: existingQuestion.tests?.length || 0
-    });
 
     // Validate options array if provided
     if (options && (!Array.isArray(options) || options.length !== 4)) {
@@ -212,17 +192,6 @@ export const updateQuestion = async (req, res) => {
     const previousTests = existingQuestion.tests || [];
 
     // Update the question
-    console.log('💾 Updating question in database:', {
-      questionId,
-      updateData: {
-        question: question?.substring(0, 50) + '...',
-        optionsCount: options?.length,
-        correctAnswer,
-        explanation: explanation ? 'provided' : 'none',
-        testsCount: validTests.length
-      }
-    });
-
     const updatedQuestion = await Question.findByIdAndUpdate(
       questionId,
       {
@@ -236,12 +205,6 @@ export const updateQuestion = async (req, res) => {
     ).populate('createdBy', 'name email')
      .populate('tests', 'title');
 
-    console.log('✅ Question updated successfully:', {
-      questionId: updatedQuestion._id,
-      updatedQuestion: updatedQuestion.question?.substring(0, 50) + '...',
-      testsCount: updatedQuestion.tests?.length || 0
-    });
-
     // Update test relationships
     // Convert previousTests ObjectIds to strings for proper comparison
     const previousTestIds = previousTests.map(testId => testId.toString());
@@ -250,20 +213,8 @@ export const updateQuestion = async (req, res) => {
     const testsToAdd = newTests.filter(testId => !previousTestIds.includes(testId));
     const testsToRemove = previousTestIds.filter(testId => !newTests.includes(testId));
 
-    console.log('🔗 Updating test relationships:', {
-      previousTests: previousTests.length,
-      previousTestIds,
-      newTests: newTests.length,
-      newTestIds: newTests,
-      testsToAdd: testsToAdd.length,
-      testsToAddIds: testsToAdd,
-      testsToRemove: testsToRemove.length,
-      testsToRemoveIds: testsToRemove
-    });
-
     // Add question to new tests
     if (testsToAdd.length > 0) {
-      console.log('➕ Adding question to new tests:', testsToAdd);
       await Test.updateMany(
         { _id: { $in: testsToAdd } },
         { $addToSet: { questions: questionId } }
@@ -272,14 +223,12 @@ export const updateQuestion = async (req, res) => {
 
     // Remove question from old tests
     if (testsToRemove.length > 0) {
-      console.log('➖ Removing question from old tests:', testsToRemove);
       await Test.updateMany(
         { _id: { $in: testsToRemove } },
         { $pull: { questions: questionId } }
       );
     }
 
-    console.log('🎉 Question update completed successfully');
     res.status(200).json({
       success: true,
       data: updatedQuestion,

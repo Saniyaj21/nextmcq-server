@@ -11,7 +11,6 @@ export const getBanners = async (req, res) => {
 
 export const createBanner = async (req, res) => {
   try {
-    console.log(req.body);
     const { title, imageURL } = req.body;
     const banner = await Banner.create({ title, imageURL });
     res.status(201).json({ success: true, data: banner });

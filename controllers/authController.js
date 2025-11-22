@@ -325,8 +325,6 @@ export const completeOnboarding = async (req, res) => {
           refereeRewards.xp,
           'referral_referee'
         );
-
-        console.log(`Referral processed: ${referrer.email} referred ${updatedUser.email}`);
       } catch (error) {
         console.error('Error processing referral rewards:', error);
         // Don't fail onboarding if referral processing fails

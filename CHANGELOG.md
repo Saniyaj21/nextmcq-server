@@ -53,8 +53,8 @@ Rahul
 - Maximum test time limit reduced from 180 minutes (3 hours) to 60 minutes (1 hour)
 - Test model now enforces timeLimit constraints: minimum 1 minute, maximum 60 minutes, must be whole numbers
 - Removed access restrictions from getAllTests endpoint - all authenticated users can now view all tests regardless of visibility settings (isPublic, allowedUsers, createdBy)
-- Student ranking score formula adjusted to favor consistency: (Total Tests × 20) + (Accuracy % × 5)
-- Reduced accuracy weight from 10 to 5, increased test weight from 10 to 20 to prevent new users with perfect scores from beating experienced users
+- Student ranking score formula optimized for performance: (Total Tests × 15) + (Correct Answers × 1) - eliminates division and rounding operations for faster leaderboard queries
+- Teacher ranking score formula simplified: now uses only totalAttemptsOfStudents × 1 (removed testsCreated component)
 
 ### Refactored
 - Implemented single source of truth for ranking score calculation

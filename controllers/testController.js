@@ -213,8 +213,6 @@ export const createTest = async (req, res) => {
       });
     }
 
-    console.log(`Teacher rewards distributed for test creation: userId=${createdBy}, coins=${teacherReward.coins}, xp=${teacherReward.xp}`);
-
     // Create post for teacher test creation
     try {
       const teacher = await User.findById(createdBy);
@@ -240,7 +238,6 @@ export const createTest = async (req, res) => {
 
     res.status(201).json({ success: true, data: { test } });
   } catch (error) {
-    //console.log(error);
     res.status(500).json({ success: false, message: 'Failed to create test' });
   }
 };
@@ -343,34 +340,24 @@ export const removeQuestionFromTest = async (req, res) => {
     const { testId, questionId } = req.params;
     const userId = req?.userId;
 
-    console.log('🗑️ Remove question from test request:', {
-      testId,
-      questionId,
-      userId
-    });
-
     if (!userId) {
-      console.log('❌ Remove question failed: User not authenticated');
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
     // Find test and verify ownership
     const test = await Test.findOne({ _id: testId, createdBy: userId });
     if (!test) {
-      console.log('❌ Remove question failed: Test not found or access denied', { testId, userId });
       return res.status(404).json({ success: false, message: 'Test not found or access denied' });
     }
 
     // Find question and verify ownership
     const question = await Question.findOne({ _id: questionId, createdBy: userId });
     if (!question) {
-      console.log('❌ Remove question failed: Question not found or access denied', { questionId, userId });
       return res.status(404).json({ success: false, message: 'Question not found or access denied' });
     }
 
     // Check if question is in the test
     if (!test.questions.includes(questionId)) {
-      console.log('❌ Remove question failed: Question not in test', { testId, questionId });
       return res.status(400).json({ success: false, message: 'Question is not in this test' });
     }
 
@@ -383,8 +370,6 @@ export const removeQuestionFromTest = async (req, res) => {
     await Question.findByIdAndUpdate(questionId, {
       $pull: { tests: testId }
     });
-
-    console.log('✅ Question removed from test successfully:', { testId, questionId });
 
     res.status(200).json({
       success: true,

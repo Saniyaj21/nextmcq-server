@@ -66,9 +66,6 @@ const calculateTestRewards = (attempt, test) => {
     ? REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME
     : { coins: 0, xp: 0 };
 
-  // Debug logging for speed bonus
-  console.log(`[SPEED_BONUS_DEBUG] attemptNumber=${attempt.attemptNumber}, timeSpent=${attempt.timeSpent}s, timeLimit=${test.timeLimit}min (${timeLimitSeconds}s), timeThreshold=${timeThresholdSeconds}s, accuracy=${accuracy.toFixed(2)}%, meetsAccuracy=${meetsAccuracyRequirement}, meetsTime=${attempt.timeSpent < timeThresholdSeconds}, speedBonusAwarded=${speedBonus.coins > 0}`);
-
   return {
     coins: questionRewards.coins + speedBonus.coins,
     xp: questionRewards.xp + speedBonus.xp,
@@ -98,8 +95,6 @@ const distributeTeacherRewards = async (testId, studentAttempt) => {
         'teacher.totalAttemptsOfStudents': 1
       }
     });
-
-    console.log(`Teacher rewards distributed: userId=${teacher._id}, coins=${teacherReward.coins}, xp=${teacherReward.xp}`);
   } catch (error) {
     console.error('Error distributing teacher rewards:', error);
   }
@@ -113,11 +108,6 @@ const distributeTeacherRewards = async (testId, studentAttempt) => {
  */
 const validateTimeSpent = (attempt, clientEndTime) => {
   const validation = validateTestTime(attempt, clientEndTime);
-
-  if (!validation.isValid) {
-    console.warn(`Time validation failed: attemptId=${attempt._id}, serverTime=${formatTimeForLogging(validation.serverTimeSpent)}, clientTime=${formatTimeForLogging(validation.clientTimeSpent)}, diff=${formatTimeForLogging(validation.timeDifference)}, tolerance=${formatTimeForLogging(validation.tolerance)}`);
-  }
-
   return validation.validatedTimeSpent;
 };
 
@@ -180,8 +170,6 @@ export const startTest = async (req, res) => {
       question: question.question,
       options: question.options
     }));
-
-    console.log(`Test started: userId=${userId}, testId=${testId}, attemptId=${attempt._id}`);
 
     res.status(200).json({
       success: true,
@@ -417,8 +405,6 @@ export const submitTest = async (req, res) => {
     } catch (postError) {
       console.error('Failed to create student_test_attempt post:', postError);
     }
-
-    console.log(`Test completed: attemptId=${attemptId}, score=${correctCount}/${totalQuestions}, timeSpent=${validatedTimeSpent}s, rewards=${rewards.coins}c ${rewards.xp}xp`);
 
     res.status(200).json({
       success: true,

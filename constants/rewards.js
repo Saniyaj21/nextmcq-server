@@ -89,8 +89,13 @@ export const LEVEL_SYSTEM = {
 export const RANKING_SYSTEM = {
   // Ranking score calculation weights
   SCORE_FORMULA: {
-    TESTS_WEIGHT: 20,      // Points per test completed (increased)
-    ACCURACY_WEIGHT: 5     // Points per 1% accuracy (reduced from 10)
+    // Student ranking formula: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
+    // Fast calculation: No division, no rounding - just simple multiplication and addition
+    TESTS_WEIGHT: 15,              // Points per test completed (rewards participation)
+    CORRECT_ANSWERS_WEIGHT: 1,     // Points per correct answer (rewards quality/skill)
+    // Teacher ranking formula: totalAttemptsOfStudents × 1
+    // Note: Teacher ranking is calculated directly in getRankingScoreAggregation()
+    // and calculateRankingScore() method, not using these weights
   },
 
   // Monthly ranking rewards
@@ -198,29 +203,16 @@ export const getRankingScoreAggregation = () => {
         $cond: {
           if: { $eq: ['$role', 'student'] },
           then: {
-            // Student ranking: (totalTests * TESTS_WEIGHT) + (accuracy * ACCURACY_WEIGHT)
+            // Student ranking: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
+            // Fast calculation: No division, no rounding - optimized for performance
             $add: [
               { $multiply: ['$student.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-              {
-                $cond: {
-                  if: { $eq: ['$student.totalQuestions', 0] },
-                  then: 0,
-                  else: {
-                    $multiply: [
-                      { $round: [{ $multiply: [{ $divide: ['$student.correctAnswers', '$student.totalQuestions'] }, 100] }] },
-                      RANKING_SYSTEM.SCORE_FORMULA.ACCURACY_WEIGHT
-                    ]
-                  }
-                }
-              }
+              { $multiply: ['$student.correctAnswers', RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT] }
             ]
           },
           else: {
-            // For teachers: (testsCreated * 10) + (totalAttemptsOfStudents * 10)
-            $add: [
-              { $multiply: ['$teacher.testsCreated', 10] },
-              { $multiply: ['$teacher.totalAttemptsOfStudents', 10] }
-            ]
+            // For teachers: totalAttemptsOfStudents × 1
+            $multiply: ['$teacher.totalAttemptsOfStudents', 1]
           }
         }
       }

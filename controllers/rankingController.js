@@ -14,15 +14,6 @@ export const getLeaderboard = async (req, res) => {
       page = 1 
     } = req.query;
 
-  // Log request parameters
-  console.log('Received ranking request:', {
-    category,
-    limit,
-    page,
-    userId: req.userId,
-    url: req.url
-  });
-
     // Validate parameters
     const validCategories = ['global', 'students', 'teachers', 'institute'];
     if (!validCategories.includes(category)) {
@@ -54,14 +45,6 @@ export const getLeaderboard = async (req, res) => {
     const pageNum = Math.max(parseInt(page) || 1, 1);
     const skip = (pageNum - 1) * limitNum;
 
-    // Log request details
-    console.log('Ranking request:', {
-      category,
-      userId: req.userId,
-      page,
-      limit
-    });
-
     // Get leaderboard data
     let leaderboard;
     if (category === 'institute') {
@@ -70,19 +53,11 @@ export const getLeaderboard = async (req, res) => {
       
       // Check if user has an institute
       if (!user?.institute?._id) {
-        console.log('No institute found for user:', req.userId);
         return res.status(400).json({
           success: false,
           message: 'No institute found for user'
         });
       }
-
-      // Debug log institute details
-      console.log('Fetching institute leaderboard:', {
-        userId: req.userId,
-        instituteId: user.institute._id,
-        instituteName: user.institute.name
-      });
 
       // Get leaderboard with institute filter
       leaderboard = await User.getLeaderboard(
@@ -90,29 +65,9 @@ export const getLeaderboard = async (req, res) => {
         limitNum + skip,
         user.institute._id.toString()
       );
-
-      // Log institute results
-      console.log('Institute leaderboard results:', {
-        instituteId: user.institute._id,
-        resultCount: leaderboard.length
-      });
     } else {
       leaderboard = await User.getLeaderboard(category, limitNum + skip);
-      console.log(`${category} leaderboard results:`, {
-        resultCount: leaderboard.length
-      });
     }
-    
-    // Debug log the raw leaderboard results
-    console.log('Raw leaderboard results:', {
-      category,
-      totalResults: leaderboard.length,
-      results: leaderboard.map(user => ({
-        id: user._id,
-        name: user.name,
-        institute: user.institute
-      }))
-    });
 
     // Apply pagination
     const paginatedLeaderboard = leaderboard.slice(skip, skip + limitNum);

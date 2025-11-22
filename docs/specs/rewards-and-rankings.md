@@ -87,11 +87,28 @@
 
 
 ### **Ranking Score Formula**
+
+#### **For Students**
 ```
-Ranking Score = (Total Tests × 10) + (Average Accuracy × 10)
+Ranking Score = (Total Tests × 15) + (Correct Answers × 1)
 
 Example:
-- User with 50 tests and 85% accuracy = (50 × 10) + (85 × 10) = 1,350 points
+- Student with 50 tests and 500 correct answers = (50 × 15) + (500 × 1) = 1,250 points
+- Student with 100 tests and 800 correct answers = (100 × 15) + (800 × 1) = 2,300 points
+```
+
+**Design Rationale:**
+- **Fast Performance**: No division or rounding operations - only simple multiplication and addition
+- **Meaningful Ranking**: Rewards both participation (tests completed) and quality (correct answers)
+- **Fair & Balanced**: Naturally balances consistency (more tests) with skill (more correct answers)
+- **Scalable**: Efficient calculation even with millions of users
+
+#### **For Teachers**
+```
+Ranking Score = Total Attempts of Students × 1
+
+Example:
+- Teacher with 1,000 total student attempts = 1,000 × 1 = 1,000 points
 ```
 
 ### **Ranking Rewards**
@@ -133,7 +150,7 @@ Example:
 
 ### **Key Functions**
 - `calculateUserLevel(xp)` - Determine level from XP
-- `calculateRankingScore(tests, accuracy)` - Simple ranking formula
+- `calculateRankingScore()` - Calculate ranking score based on role (Students: tests + correctAnswers, Teachers: totalAttemptsOfStudents)
 - `awardRewards(userId, coins, xp, source)` - Add rewards to user
 - `updateLeaderboard()` - Monthly leaderboard calculation
 
