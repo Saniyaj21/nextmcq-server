@@ -442,6 +442,7 @@ export const getProfile = async (req, res) => {
             correctAnswers: user.student.correctAnswers || 0,
             totalQuestions: user.student.totalQuestions || 0,
             averageAccuracy: user.calculateAccuracy(),
+            attemptedTests: user.student.attemptedTests || []
           },
           teacher: user.teacher,
           createdAt: user.createdAt,

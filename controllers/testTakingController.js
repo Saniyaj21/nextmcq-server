@@ -278,10 +278,13 @@ export const submitAnswer = async (req, res) => {
  * POST /api/test-taking/submit-test/:attemptId
  */
 export const submitTest = async (req, res) => {
+  console.log('[DEBUG] Entering submitTest with attemptId:', req.params.attemptId);
   try {
     const { attemptId } = req.params;
     const { answers: clientAnswers, clientEndTime } = req.body;
     const userId = req.userId;
+
+    console.log('[DEBUG] Processing submission for user:', userId);
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -358,25 +361,49 @@ export const submitTest = async (req, res) => {
     });
 
     // Update user statistics
-    const userStatsUpdate = {
-      $inc: {
-        'student.totalTests': 1,
-        'student.correctAnswers': correctCount,
-        'student.totalQuestions': totalQuestions,
-        'rewards.coins': rewards.coins,
-        'rewards.xp': rewards.xp
+    // Simplify update logic for debugging and reliability
+    console.log('[UserStats] Starting user stats update for user:', userId);
+    
+    const userToUpdate = await User.findById(userId);
+    if (userToUpdate) {
+      // Update basic stats
+      userToUpdate.student.totalTests = (userToUpdate.student.totalTests || 0) + 1;
+      userToUpdate.student.correctAnswers = (userToUpdate.student.correctAnswers || 0) + correctCount;
+      userToUpdate.student.totalQuestions = (userToUpdate.student.totalQuestions || 0) + totalQuestions;
+      userToUpdate.rewards.coins += rewards.coins;
+      userToUpdate.rewards.xp += rewards.xp;
+
+      // Update attemptedTests array
+      if (!userToUpdate.student.attemptedTests) {
+        userToUpdate.student.attemptedTests = [];
       }
-    };
 
-    await User.findByIdAndUpdate(userId, userStatsUpdate);
+      const testIndex = userToUpdate.student.attemptedTests.findIndex(
+        t => t.testId && t.testId.toString() === attempt.testId._id.toString()
+      );
 
-    // Update user level
-    const user = await User.findById(userId);
-    const newLevel = LEVEL_SYSTEM.calculateLevelFromXP(user.rewards.xp + rewards.xp);
-    if (newLevel > user.rewards.level) {
-      await User.findByIdAndUpdate(userId, {
-        $set: { 'rewards.level': newLevel }
-      });
+      if (testIndex >= 0) {
+        console.log('[UserStats] Test already in array. Current count:', userToUpdate.student.attemptedTests[testIndex].attemptsCount);
+        userToUpdate.student.attemptedTests[testIndex].attemptsCount += 1;
+        console.log('[UserStats] New count:', userToUpdate.student.attemptedTests[testIndex].attemptsCount);
+      } else {
+        console.log('[UserStats] Test not in array. Adding new entry.');
+        userToUpdate.student.attemptedTests.push({
+          testId: attempt.testId._id,
+          attemptsCount: 1
+        });
+      }
+
+      // Calculate new level
+      const newLevel = LEVEL_SYSTEM.calculateLevelFromXP(userToUpdate.rewards.xp);
+      if (newLevel > userToUpdate.rewards.level) {
+        userToUpdate.rewards.level = newLevel;
+      }
+
+      await userToUpdate.save();
+      console.log('[UserStats] User stats saved successfully');
+    } else {
+      console.error('[UserStats] User not found for stats update:', userId);
     }
 
     // Distribute teacher rewards
@@ -388,7 +415,7 @@ export const submitTest = async (req, res) => {
         type: 'student_test_attempt',
         title: 'Test Attempt Completed',
         creator: userId,
-        description: `${user.name || 'Student'} completed ${attempt.testId.title || 'a test'}`,
+        description: `${userToUpdate.name || 'Student'} completed ${attempt.testId.title || 'a test'}`,
         data: {
           attemptId: attempt._id,
           testId: attempt.testId._id,

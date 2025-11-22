@@ -65,7 +65,8 @@ export const getPublicProfile = async (req, res) => {
       totalTests: user.student.totalTests || 0,
       correctAnswers: user.student.correctAnswers || 0,
       totalQuestions: user.student.totalQuestions || 0,
-      averageAccuracy: accuracy
+      averageAccuracy: accuracy,
+      attemptedTests: user.student.attemptedTests || []
     } : undefined;
 
     const teacherData = user.role === 'teacher' && user.teacher ? {

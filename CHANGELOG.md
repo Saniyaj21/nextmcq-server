@@ -7,6 +7,11 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Added
+- Added `attemptedTests` array to User model (student role) to track attempted test IDs and attempt counts
+- Updated `submitTest` controller to populate and increment `attemptedTests` statistics for students
+- Updated `getPublicProfile` (userController) and `getProfile` (authController) to return `attemptedTests` data
+
 ### Fixed
 - Critical bug: Fixed question-test link breaking when editing questions due to ObjectId vs string comparison issue
 - Bug: updateQuestion controller now correctly converts ObjectId arrays to strings before comparing test relationships
