@@ -247,7 +247,7 @@ userSchema.statics.findByReferralCode = function (code) {
   return this.findOne({ referralCode: code });
 };
 
-userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null) {
+userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null, level = null) {
   const pipeline = [];
 
   // First stage: Match active users
@@ -265,6 +265,14 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         institute: instituteObjectId
       }
     });
+  } else if (instituteId && category !== 'institute') {
+    // Filter by institute for students/teachers categories
+    const instituteObjectId = new mongoose.Types.ObjectId(instituteId);
+    pipeline.push({
+      $match: {
+        institute: instituteObjectId
+      }
+    });
   }
 
   // Third stage: Role-based filtering
@@ -275,6 +283,13 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
   } else if (category === 'teachers') {
     pipeline.push({
       $match: { role: 'teacher' }
+    });
+  }
+
+  // Fourth stage: Level filtering (NEW)
+  if (level !== null && level !== undefined) {
+    pipeline.push({
+      $match: { 'rewards.level': level }
     });
   }
 

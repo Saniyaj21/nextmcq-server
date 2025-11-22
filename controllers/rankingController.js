@@ -11,7 +11,9 @@ export const getLeaderboard = async (req, res) => {
     const { 
       category = 'global', 
       limit = 50, 
-      page = 1 
+      page = 1,
+      institute = null,  // NEW: Filter by institute ID
+      level = null       // NEW: Filter by level
     } = req.query;
 
     // Validate parameters
@@ -45,8 +47,13 @@ export const getLeaderboard = async (req, res) => {
     const pageNum = Math.max(parseInt(page) || 1, 1);
     const skip = (pageNum - 1) * limitNum;
 
-    // Get leaderboard data
+    // Parse level filter
+    const levelFilter = level ? parseInt(level) : null;
+
+    // Get leaderboard data with new filters
     let leaderboard;
+    let instituteIdForQuery = null;
+
     if (category === 'institute') {
       // Get user with institute
       const user = await User.findById(req.userId).populate('institute');
@@ -59,15 +66,19 @@ export const getLeaderboard = async (req, res) => {
         });
       }
 
-      // Get leaderboard with institute filter
-      leaderboard = await User.getLeaderboard(
-        category,
-        limitNum + skip,
-        user.institute._id.toString()
-      );
-    } else {
-      leaderboard = await User.getLeaderboard(category, limitNum + skip);
+      instituteIdForQuery = user.institute._id.toString();
+    } else if (institute) {
+      // Use provided institute filter for students/teachers categories
+      instituteIdForQuery = institute;
     }
+
+    // Get leaderboard with filters
+    leaderboard = await User.getLeaderboard(
+      category,
+      limitNum + skip,
+      instituteIdForQuery,
+      levelFilter  // NEW: Pass level filter
+    );
 
     // Apply pagination
     const paginatedLeaderboard = leaderboard.slice(skip, skip + limitNum);
@@ -78,33 +89,27 @@ export const getLeaderboard = async (req, res) => {
       rank: skip + index + 1
     }));
 
-    // Get total count for pagination info
-    let totalUsers;
-    if (category === 'institute') {
-      const user = await User.findById(req.userId).populate('institute');
-      if (!user?.institute?._id) {
-        return res.status(400).json({
-          success: false,
-          message: 'No institute found for user'
-        });
-      }
-      // Only count active users in the same institute
-      totalUsers = await User.countDocuments({ 
-        institute: user.institute._id,
-        isActive: true
-      });
-
-      // If no users found in institute (should at least have the current user)
-      if (totalUsers === 0) {
-        totalUsers = 1; // Current user should be counted
-      }
-    } else {
-      totalUsers = await User.countDocuments(
-        category === 'students' ? { role: 'student', isActive: true } :
-        category === 'teachers' ? { role: 'teacher', isActive: true } : 
-        { isActive: true }
-      );
+    // Get total count for pagination info with filters
+    let countQuery = { isActive: true };
+    
+    // Apply category filters
+    if (category === 'students') {
+      countQuery.role = 'student';
+    } else if (category === 'teachers') {
+      countQuery.role = 'teacher';
     }
+    
+    // Apply institute filter
+    if (instituteIdForQuery) {
+      countQuery.institute = instituteIdForQuery;
+    }
+    
+    // Apply level filter
+    if (levelFilter !== null) {
+      countQuery['rewards.level'] = levelFilter;
+    }
+
+    const totalUsers = await User.countDocuments(countQuery);
 
     res.status(200).json({
       success: true,
@@ -118,7 +123,11 @@ export const getLeaderboard = async (req, res) => {
           hasNext: skip + limitNum < totalUsers,
           hasPrev: pageNum > 1
         },
-        category
+        category,
+        filters: {
+          institute: instituteIdForQuery,
+          level: levelFilter
+        }
       }
     });
 
