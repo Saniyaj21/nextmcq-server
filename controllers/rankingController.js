@@ -83,11 +83,20 @@ export const getLeaderboard = async (req, res) => {
     // Apply pagination
     const paginatedLeaderboard = leaderboard.slice(skip, skip + limitNum);
 
-    // Add rank numbers
-    const leaderboardWithRanks = paginatedLeaderboard.map((user, index) => ({
-      ...user,
-      rank: skip + index + 1
-    }));
+    // Add actual global role-specific ranks to each user
+    // Calculate the rank for each user independently to show their true position
+    const leaderboardWithRanks = await Promise.all(
+      paginatedLeaderboard.map(async (user, index) => {
+        // Get the actual rank for this user in their role category
+        const rankResult = await User.getUserRanking(user._id, category);
+        const actualRank = rankResult && rankResult.length > 0 ? rankResult[0].rank : (skip + index + 1);
+        
+        return {
+          ...user,
+          rank: actualRank
+        };
+      })
+    );
 
     // Get total count for pagination info with filters
     let countQuery = { isActive: true };

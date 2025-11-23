@@ -44,15 +44,16 @@ export const getPublicProfile = async (req, res) => {
     // Calculate accuracy
     const accuracy = user.calculateAccuracy();
 
-    // Get user's global ranking using optimized approach
-    let globalRank = null;
+    // Get user's role-specific ranking
+    let roleRank = null;
     let rankingScore = 0;
     try {
-      // Use getUserRanking for better performance - only gets the user's rank
-      const rankResult = await User.getUserRanking(userId, 'global');
+      // Use role-specific category for ranking
+      const category = user.role === 'teacher' ? 'teachers' : 'students';
+      const rankResult = await User.getUserRanking(userId, category);
 
       if (rankResult && rankResult.length > 0) {
-        globalRank = rankResult[0].rank;
+        roleRank = rankResult[0].rank;
         rankingScore = rankResult[0].score;
       }
     } catch (error) {
@@ -88,7 +89,7 @@ export const getPublicProfile = async (req, res) => {
       level: user.rewards.level,
       accuracy: accuracy,
       testsCompleted: user.role === 'student' ? (user.student?.totalTests || 0) : (user.teacher?.testsCreated || 0),
-      globalRank: globalRank,
+      roleRank: roleRank, // Changed from globalRank to roleRank
       rankingScore: rankingScore,
       memberSince: user.createdAt,
       profileImage: user.profileImage, // Include profile image
