@@ -21,6 +21,7 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - Bug: Added detailed logging to track test relationship updates for debugging
 - **CRITICAL**: Fixed permanent user blocking issue - users can now retry tests immediately after abandoning an attempt, with old attempts automatically marked as 'abandoned'
 - **Fair Rewards**: Fixed first-attempt bonus calculation to ignore abandoned attempts - users now get full bonus (10 coins/XP) on their first COMPLETED attempt, even if they abandoned previous attempts
+- **Time Accuracy**: Fixed auto-submitted tests showing overtime (e.g., 2m6s for 2m test) - time spent now clamped to test time limit to account for network/processing delays
 
 ### Added
 - Added: Lightweight `Post` model with enum-backed post types (`teacher_test_created`, `student_test_attempt`), optional creator reference, and flexible payload data

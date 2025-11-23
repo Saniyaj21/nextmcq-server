@@ -22,13 +22,22 @@ export const validateTestTime = (attempt, clientEndTime) => {
 
   const isValid = timeDifference <= tolerance;
 
+  // Calculate validated time spent
+  let validatedTimeSpent = isValid ? clientTimeSpent : serverTimeSpent;
+
+  // If test has time limit, clamp to max allowed time (prevents showing overtime due to network delay)
+  if (attempt.timeLimit && attempt.timeLimit > 0) {
+    const maxTimeSeconds = attempt.timeLimit * 60;
+    validatedTimeSpent = Math.min(validatedTimeSpent, maxTimeSeconds);
+  }
+
   return {
     serverTimeSpent,
     clientTimeSpent,
     timeDifference,
     tolerance,
     isValid,
-    validatedTimeSpent: isValid ? clientTimeSpent : serverTimeSpent
+    validatedTimeSpent
   };
 };
 
