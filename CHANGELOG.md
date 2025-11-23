@@ -11,12 +11,16 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - Added `attemptedTests` array to User model (student role) to track attempted test IDs and attempt counts
 - Updated `submitTest` controller to populate and increment `attemptedTests` statistics for students
 - Updated `getPublicProfile` (userController) and `getProfile` (authController) to return `attemptedTests` data
+- **Auto-Abandon System**: Added automatic abandonment of in-progress test attempts when user starts a new attempt - prevents permanent blocks and keeps database clean
+- **Fair Rewards**: First-attempt bonus now based on first COMPLETED attempt, not total attempts - abandoned attempts no longer penalize users
 
 ### Fixed
 - Critical bug: Fixed question-test link breaking when editing questions due to ObjectId vs string comparison issue
 - Bug: updateQuestion controller now correctly converts ObjectId arrays to strings before comparing test relationships
 - Bug: Questions now properly maintain their test associations when edited (no more broken links)
 - Bug: Added detailed logging to track test relationship updates for debugging
+- **CRITICAL**: Fixed permanent user blocking issue - users can now retry tests immediately after abandoning an attempt, with old attempts automatically marked as 'abandoned'
+- **Fair Rewards**: Fixed first-attempt bonus calculation to ignore abandoned attempts - users now get full bonus (10 coins/XP) on their first COMPLETED attempt, even if they abandoned previous attempts
 
 ### Added
 - Added: Lightweight `Post` model with enum-backed post types (`teacher_test_created`, `student_test_attempt`), optional creator reference, and flexible payload data

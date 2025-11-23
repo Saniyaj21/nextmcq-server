@@ -44,10 +44,13 @@ const validateTestAccess = async (userId, testId) => {
  * Calculate test rewards
  * @param {Object} attempt - TestAttempt document
  * @param {Object} test - Test document
+ * @param {boolean} isFirstCompletion - Is this the user's first completed attempt?
  * @returns {Object} - Reward breakdown
  */
-const calculateTestRewards = (attempt, test) => {
-  const isFirstAttempt = attempt.attemptNumber === 1;
+const calculateTestRewards = (attempt, test, isFirstCompletion = false) => {
+  // Use isFirstCompletion instead of attemptNumber
+  // This ensures abandoned attempts don't penalize the user
+  const isFirstAttempt = isFirstCompletion;
 
   // Calculate question rewards (correct answers only)
   const correctAnswers = attempt.answers.filter(answer => answer.isCorrect);
@@ -133,19 +136,27 @@ export const startTest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Test not found' });
     }
 
-    // Check for existing in-progress attempt
-    const existingAttempt = await TestAttempt.findOne({
+    // Auto-abandon any existing in-progress attempts for this user+test
+    const inProgressAttempts = await TestAttempt.find({
       userId,
       testId,
       status: 'in_progress'
     });
 
-    if (existingAttempt) {
-      return res.status(400).json({
-        success: false,
-        message: 'Test already in progress',
-        data: { attemptId: existingAttempt._id }
-      });
+    if (inProgressAttempts.length > 0) {
+      // Mark all in-progress attempts as abandoned
+      for (const oldAttempt of inProgressAttempts) {
+        oldAttempt.status = 'abandoned';
+        oldAttempt.completedAt = new Date();
+        
+        // Calculate time spent
+        const timeSpentMs = Date.now() - oldAttempt.serverStartTime.getTime();
+        oldAttempt.timeSpent = Math.floor(timeSpentMs / 1000);
+        
+        await oldAttempt.save();
+      }
+      
+      console.log(`[StartTest] Auto-abandoned ${inProgressAttempts.length} in-progress attempt(s) for user ${userId} on test ${testId}`);
     }
 
     // Get attempt number
@@ -330,8 +341,20 @@ export const submitTest = async (req, res) => {
     const totalQuestions = attempt.testId.questions.length;
     const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
-    // Calculate rewards
-    const rewards = calculateTestRewards({ ...attempt.toObject(), answers: processedAnswers, timeSpent: validatedTimeSpent }, attempt.testId);
+    // Check if this is the user's first COMPLETED attempt (for rewards)
+    const previousCompletedAttempts = await TestAttempt.countDocuments({
+      userId: userId,
+      testId: attempt.testId._id,
+      status: 'completed'
+    });
+    const isFirstCompletion = previousCompletedAttempts === 0;
+
+    // Calculate rewards (with first-completion bonus if applicable)
+    const rewards = calculateTestRewards(
+      { ...attempt.toObject(), answers: processedAnswers, timeSpent: validatedTimeSpent }, 
+      attempt.testId,
+      isFirstCompletion
+    );
 
     // Update attempt
     attempt.answers = processedAnswers;
