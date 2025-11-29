@@ -319,12 +319,21 @@ export const getTeacherStats = async (req, res) => {
     // Total attempts across all tests
     const totalAttempts = testAttempts.length;
 
-    // Unique students who have taken tests
-    const uniqueStudents = new Set(testAttempts.map(a => a.userId._id.toString())).size;
+    // Unique students who have taken tests (filter out null/undefined userIds)
+    const uniqueStudents = new Set(
+      testAttempts
+        .filter(a => a.userId && (a.userId._id || a.userId))
+        .map(a => {
+          const userId = a.userId._id || a.userId;
+          return userId ? userId.toString() : null;
+        })
+        .filter(id => id !== null)
+    ).size;
 
-    // Average score across all attempts
-    const avgScore = testAttempts.length > 0
-      ? testAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / testAttempts.length
+    // Average score across all attempts (filter out attempts with invalid scores)
+    const validAttempts = testAttempts.filter(a => a.score && typeof a.score.percentage === 'number');
+    const avgScore = validAttempts.length > 0
+      ? validAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / validAttempts.length
       : 0;
 
     // Recent activity (last 30 days)
@@ -342,7 +351,8 @@ export const getTeacherStats = async (req, res) => {
     // Most popular test (by attempts)
     const testAttemptsCount = {};
     testAttempts.forEach(attempt => {
-      const testId = attempt.testId?.toString();
+      // Handle both populated and lean() formats
+      const testId = attempt.testId?.toString() || (attempt.testId && attempt.testId._id ? attempt.testId._id.toString() : null);
       if (testId) {
         testAttemptsCount[testId] = (testAttemptsCount[testId] || 0) + 1;
       }
@@ -363,14 +373,15 @@ export const getTeacherStats = async (req, res) => {
       }
     }
 
-    // Recent test attempts (last 10)
+    // Recent test attempts (last 10) - filter out attempts with missing data
     const recentTestAttempts = testAttempts
+      .filter(a => a.completedAt && a.score && typeof a.score.percentage === 'number')
       .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
       .slice(0, 10)
       .map(attempt => ({
-        studentName: attempt.userId?.name || attempt.userId?.email || 'Unknown',
+        studentName: attempt.userId?.name || attempt.userId?.email || 'Unknown Student',
         score: attempt.score.percentage,
-        timeSpent: attempt.timeSpent,
+        timeSpent: attempt.timeSpent || 0,
         completedAt: attempt.completedAt
       }));
 
