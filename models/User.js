@@ -371,6 +371,7 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         'teacher.questionsCreated': 1,
         'teacher.averageRating': 1,
         'teacher.totalAttemptsOfStudents': 1,
+        badges: 1, // Include badges
         rankingScore: 1
       }
     }

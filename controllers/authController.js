@@ -445,6 +445,7 @@ export const getProfile = async (req, res) => {
             attemptedTests: user.student.attemptedTests || []
           },
           teacher: user.teacher,
+          badges: user.badges || [],
           createdAt: user.createdAt,
           updatedAt: user.updatedAt
         }

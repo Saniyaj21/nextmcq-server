@@ -93,7 +93,8 @@ export const getLeaderboard = async (req, res) => {
         
         return {
           ...user,
-          rank: actualRank
+          rank: actualRank,
+          badges: user.badges || [] // Ensure badges are included
         };
       })
     );

@@ -93,6 +93,7 @@ export const getPublicProfile = async (req, res) => {
       rankingScore: rankingScore,
       memberSince: user.createdAt,
       profileImage: user.profileImage, // Include profile image
+      badges: user.badges || [], // Include badges
       ...(studentData && { student: studentData }),
       ...(teacherData && { teacher: teacherData })
     };
