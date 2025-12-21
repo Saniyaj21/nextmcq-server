@@ -7,6 +7,8 @@ import Question from './Question.js';
 import Rating from './Rating.js';
 import Post from './Post.js';
 import Feedback from './Feedback.js';
+import MonthlyRankingSnapshot from './MonthlyRankingSnapshot.js';
+import MonthlyReward from './MonthlyReward.js';
 
 export {
   User,
@@ -17,7 +19,9 @@ export {
   Question,
   Rating,
   Post,
-  Feedback
+  Feedback,
+  MonthlyRankingSnapshot,
+  MonthlyReward
 };
 
 export default {
@@ -29,5 +33,7 @@ export default {
   Question,
   Rating,
   Post,
-  Feedback
+  Feedback,
+  MonthlyRankingSnapshot,
+  MonthlyReward
 };

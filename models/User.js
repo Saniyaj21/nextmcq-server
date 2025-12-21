@@ -185,7 +185,47 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true // Allow null values but enforce uniqueness when present
-  }
+  },
+
+  // ==========================================
+  // BADGES & ACHIEVEMENTS
+  // ==========================================
+  badges: [{
+    name: {
+      type: String,
+      required: true  // e.g., "Monthly Champion", "Monthly Elite"
+    },
+    category: {
+      type: String,
+      enum: ['global', 'students', 'teachers'],
+      required: true
+    },
+    month: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 12
+    },
+    year: {
+      type: Number,
+      required: true,
+      min: 2020
+    },
+    tier: {
+      type: String,
+      enum: ['CHAMPION', 'ELITE', 'ACHIEVER', 'PERFORMER'],
+      required: true
+    },
+    rank: {
+      type: Number,
+      required: true,
+      min: 1
+    },
+    earnedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 
 }, {
   timestamps: true
