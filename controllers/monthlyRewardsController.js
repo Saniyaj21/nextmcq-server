@@ -110,7 +110,7 @@ async function processCategoryRewards(month, year, category) {
   let snapshot = await MonthlyRankingSnapshot.findByMonth(month, year, category);
   
   if (!snapshot) {
-    // Create snapshot of current rankings
+    // Create snapshot of current rankings (now includes all users for UNPLACED badges)
     console.log(`[MonthlyRewards] Creating snapshot for ${category}`);
     snapshot = await createRankingSnapshot(month, year, category);
   }
@@ -144,7 +144,8 @@ async function processCategoryRewards(month, year, category) {
       champion: winners.champion ? 1 : 0,
       elite: winners.elite.length,
       achiever: winners.achiever.length,
-      performer: winners.performer.length
+      performer: winners.performer.length,
+      unplaced: winners.unplaced ? winners.unplaced.length : 0
     },
     rewardsAwarded: awardResults.totalAwarded,
     coinsAwarded: awardResults.totalCoins,
@@ -156,8 +157,9 @@ async function processCategoryRewards(month, year, category) {
  * Create a snapshot of current rankings for a category
  */
 async function createRankingSnapshot(month, year, category) {
-  // Get leaderboard (top 100 users)
-  const leaderboard = await User.getLeaderboard(category, 100);
+  // Get all users for the category (not just top 100) to award UNPLACED badges
+  // Use a large limit to get all users, or get all users in the category
+  const leaderboard = await User.getLeaderboard(category, 10000); // Large limit to get all users
   
   // Build rankings array
   const rankings = leaderboard.map((user, index) => ({
@@ -180,7 +182,7 @@ async function createRankingSnapshot(month, year, category) {
     processed: false
   });
 
-  console.log(`[MonthlyRewards] Snapshot created: ${snapshot._id} for ${category}`);
+  console.log(`[MonthlyRewards] Snapshot created: ${snapshot._id} for ${category} with ${leaderboard.length} users`);
   return snapshot;
 }
 
@@ -192,7 +194,8 @@ function determineWinners(rankings) {
     champion: rankings.length > 0 ? rankings[0] : null,        // Rank 1
     elite: rankings.slice(1, 10),                               // Rank 2-10
     achiever: rankings.slice(10, 50),                           // Rank 11-50
-    performer: rankings.slice(50, 100)                          // Rank 51-100
+    performer: rankings.slice(50, 100),                          // Rank 51-100
+    unplaced: rankings.slice(100)                               // Rank 101+
   };
 }
 
@@ -286,6 +289,27 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       totalCoins += rewards.PERFORMER.coins;
     } catch (error) {
       errors.push({ rank: i + 51, error: error.message });
+    }
+  }
+
+  // Award Unplaced (#101+)
+  for (let i = 0; i < winners.unplaced.length; i++) {
+    try {
+      await awardSingleReward({
+        user: winners.unplaced[i],
+        rank: i + 101,
+        tier: 'UNPLACED',
+        coins: rewards.UNPLACED.coins,
+        badge: rewards.UNPLACED.badge,
+        month,
+        year,
+        category,
+        snapshotId
+      });
+      totalAwarded++;
+      totalCoins += rewards.UNPLACED.coins;
+    } catch (error) {
+      errors.push({ rank: i + 101, error: error.message });
     }
   }
 

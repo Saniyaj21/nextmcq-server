@@ -115,6 +115,10 @@ export const RANKING_SYSTEM = {
     PERFORMER: { // Top 100
       coins: 100,
       badge: 'Monthly Performer'
+    },
+    UNPLACED: { // After 100
+      coins: 10,
+      badge: 'Monthly Unplaced'
     }
   },
 
