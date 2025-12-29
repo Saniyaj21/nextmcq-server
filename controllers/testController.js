@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Question from '../models/Question.js';
 import Rating from '../models/Rating.js';
 import Post from '../models/Post.js';
+import TestAttempt from '../models/TestAttempt.js';
 import { REWARDS } from '../constants/rewards.js';
 
 export const getTests = async (req, res) => {
@@ -41,8 +42,11 @@ export const getAllTests = async (req, res) => {
       minRating = '0',
       sortBy = 'recent',
       page = '1',
-      limit = '20'
+      limit = '20',
+      enrolled = 'false'
     } = req.query;
+
+    const enrolledOnly = enrolled === 'true' || enrolled === true;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
@@ -112,6 +116,27 @@ export const getAllTests = async (req, res) => {
       }
     });
 
+    // Filter by enrolled tests (tests user has attempted)
+    if (enrolledOnly && userId) {
+      // Get all test IDs that the user has attempted
+      const userAttempts = await TestAttempt.distinct('testId', { userId });
+      
+      if (userAttempts.length > 0) {
+        pipeline.push({
+          $match: {
+            _id: { $in: userAttempts }
+          }
+        });
+      } else {
+        // If user has no attempts, return empty result
+        pipeline.push({
+          $match: {
+            _id: { $in: [] } // This will match nothing
+          }
+        });
+      }
+    }
+
     // Sorting
     const sortStage = {};
     if (sortBy === 'recent') sortStage.createdAt = -1;
@@ -130,7 +155,7 @@ export const getAllTests = async (req, res) => {
           { $limit: limitNum },
           // Include creator fields in output
           { $project: {
-            title: 1, description: 1, subject:1, chapter:1, timeLimit:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
+            title: 1, description: 1, subject:1, chapter:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
             createdBy: { _id: '$creator._id', name: '$creator.name', email: '$creator.email', profileImage: '$creator.profileImage' },
             averageRating: 1, totalRatings: 1
           } }
@@ -161,7 +186,7 @@ export const getAllTests = async (req, res) => {
 
 export const createTest = async (req, res) => {
   try {
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, coinFee } = req.body;
     const createdBy = req?.userId; // Get user ID from request.
 
     if (!createdBy) {
@@ -190,12 +215,29 @@ export const createTest = async (req, res) => {
       }
     }
 
+    // Validate coin fee
+    if (coinFee !== undefined) {
+      if (!Number.isInteger(coinFee)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Coin fee must be a whole number' 
+        });
+      }
+      if (coinFee < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Coin fee cannot be negative' 
+        });
+      }
+    }
+
     const test = await Test.create({
       title,
       description,
       subject,
       chapter,
       timeLimit,
+      coinFee: coinFee !== undefined ? coinFee : 0,
       isPublic,
       allowedUsers: allowedUsers || [],
       createdBy
@@ -245,11 +287,27 @@ export const createTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, coinFee } = req.body;
     const userId = req?.userId;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate coin fee if provided
+    if (coinFee !== undefined) {
+      if (!Number.isInteger(coinFee)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Coin fee must be a whole number' 
+        });
+      }
+      if (coinFee < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Coin fee cannot be negative' 
+        });
+      }
     }
 
     // Validate time limit if provided
@@ -280,18 +338,22 @@ export const updateTest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Test not found or access denied' });
     }
 
+    // Build update object with only provided fields
+    const updateData = {
+      ...(title !== undefined && { title }),
+      ...(description !== undefined && { description }),
+      ...(subject !== undefined && { subject }),
+      ...(chapter !== undefined && { chapter }),
+      ...(timeLimit !== undefined && { timeLimit }),
+      ...(coinFee !== undefined && { coinFee }),
+      ...(isPublic !== undefined && { isPublic }),
+      ...(allowedUsers !== undefined && { allowedUsers: allowedUsers || [] })
+    };
+
     // Update test
     const updatedTest = await Test.findByIdAndUpdate(
       testId,
-      {
-        title,
-        description,
-        subject,
-        chapter,
-        timeLimit,
-        isPublic,
-        allowedUsers: allowedUsers || []
-      },
+      updateData,
       { new: true }
     );
 

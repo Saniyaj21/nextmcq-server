@@ -264,6 +264,17 @@ userSchema.methods.addRewards = function (coins = 0, xp = 0, source = 'unknown')
   return this.save();
 };
 
+userSchema.methods.deductCoins = function (amount, reason = 'unknown') {
+  if (amount < 0) {
+    throw new Error('Deduction amount cannot be negative');
+  }
+  if (this.rewards.coins < amount) {
+    throw new Error('Insufficient coins');
+  }
+  this.rewards.coins -= amount;
+  return this.save();
+};
+
 userSchema.methods.calculateAccuracy = function () {
   // For students: calculate based on test performance
   if (this.role === 'student') {

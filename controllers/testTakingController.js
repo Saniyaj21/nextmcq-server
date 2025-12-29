@@ -161,6 +161,39 @@ export const startTest = async (req, res) => {
       
     }
 
+    // Check if payment is required (first attempt only)
+    const coinFee = test.coinFee || 0;
+    const isCreator = test.createdBy.toString() === userId;
+    const hasPreviousAttempts = await TestAttempt.countDocuments({ userId, testId }) > 0;
+    let coinsPaid = 0;
+
+    // Process payment if required (first attempt, not creator, test has fee)
+    if (coinFee > 0 && !isCreator && !hasPreviousAttempts) {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Check if user has sufficient coins
+      if (user.rewards.coins < coinFee) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient coins. Required: ${coinFee}, Available: ${user.rewards.coins}`
+        });
+      }
+
+      // Deduct coins
+      try {
+        await user.deductCoins(coinFee, `test_fee_${testId}`);
+        coinsPaid = coinFee;
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: error.message || 'Failed to deduct coins'
+        });
+      }
+    }
+
     // Get attempt number
     const attemptNumber = await TestAttempt.countDocuments({ userId, testId }) + 1;
 
@@ -172,6 +205,7 @@ export const startTest = async (req, res) => {
       attemptNumber,
       serverStartTime,
       timeLimit: test.timeLimit,
+      coinsPaid: coinsPaid,
       status: 'in_progress'
     });
 
@@ -600,6 +634,22 @@ export const getTestDetails = async (req, res) => {
     // Calculate global stats (total attempts count)
     const totalAttempts = await TestAttempt.countDocuments({ testId, status: 'completed' });
 
+    // Get user for coin balance
+    const user = await User.findById(userId);
+    const userCoins = user?.rewards?.coins || 0;
+
+    // Check if user has any previous attempts (determines if already paid)
+    const hasPreviousAttempts = await TestAttempt.countDocuments({ 
+      userId, 
+      testId 
+    }) > 0;
+
+    // Determine payment status
+    const isCreator = test.createdBy._id.toString() === userId;
+    const coinFee = test.coinFee || 0;
+    const hasPaidForTest = hasPreviousAttempts;
+    const requiresPayment = coinFee > 0 && !hasPreviousAttempts && !isCreator;
+
     // Get top performers (top 5 users by their best score, then by best time)
     const topPerformers = await TestAttempt.aggregate([
       {
@@ -675,6 +725,7 @@ export const getTestDetails = async (req, res) => {
       subject: test.subject,
       chapter: test.chapter,
       timeLimit: test.timeLimit,
+      coinFee: coinFee,
       isPublic: test.isPublic,
       questionsCount: test.questions.length,
       attemptsCount: totalAttempts, // Real attempts count from database
@@ -682,6 +733,9 @@ export const getTestDetails = async (req, res) => {
       createdAt: test.createdAt,
       hasAccess: hasAccess,
       hasPendingRequest: hasPendingRequest,
+      userCoins: userCoins,
+      hasPaidForTest: hasPaidForTest,
+      requiresPayment: requiresPayment,
 
       // Rating data from aggregated fields
       averageRating: test.averageRating || 0,
@@ -721,6 +775,123 @@ export const getTestDetails = async (req, res) => {
  * Get user attempts for a test
  * GET /api/test-taking/user-attempts/:testId
  */
+export const getPurchasedTests = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Get all attempts where user paid coins
+    const paidAttempts = await TestAttempt.find({
+      userId,
+      coinsPaid: { $gt: 0 }
+    })
+      .populate({
+        path: 'testId',
+        select: 'title subject chapter description timeLimit coinFee createdAt createdBy',
+        populate: {
+          path: 'createdBy',
+          select: 'name email profileImage'
+        }
+      })
+      .sort({ serverStartTime: -1 });
+
+    // Group by test and get statistics
+    const testMap = new Map();
+
+    for (const attempt of paidAttempts) {
+      // Check if testId is populated
+      if (!attempt.testId || !attempt.testId._id) {
+        console.warn('Skipping attempt with unpopulated testId:', attempt._id);
+        continue;
+      }
+
+      const testId = attempt.testId._id.toString();
+      
+      // Ensure createdBy is properly populated (handle both populated object and ObjectId)
+      let createdBy = attempt.testId.createdBy;
+      // Check if createdBy is an ObjectId (not populated) vs an object (populated)
+      if (!createdBy) {
+        console.warn('createdBy is null/undefined for test:', testId);
+        continue;
+      }
+      // If createdBy is an ObjectId string or has toString but no name/email, it's not populated
+      if (typeof createdBy === 'string' || (typeof createdBy === 'object' && createdBy.toString && !createdBy.name && !createdBy.email)) {
+        console.warn('createdBy not populated (ObjectId only) for test:', testId);
+        continue;
+      }
+      
+      if (!testMap.has(testId)) {
+        testMap.set(testId, {
+          test: {
+            _id: attempt.testId._id,
+            title: attempt.testId.title,
+            subject: attempt.testId.subject,
+            chapter: attempt.testId.chapter,
+            description: attempt.testId.description,
+            timeLimit: attempt.testId.timeLimit,
+            coinFee: attempt.testId.coinFee,
+            createdAt: attempt.testId.createdAt,
+            createdBy: createdBy
+          },
+          totalCoinsPaid: 0,
+          firstPurchaseDate: attempt.serverStartTime,
+          totalAttempts: 0,
+          attempts: []
+        });
+      }
+
+      const testData = testMap.get(testId);
+      testData.totalCoinsPaid += attempt.coinsPaid;
+      testData.totalAttempts += 1;
+      testData.attempts.push({
+        attemptId: attempt._id,
+        attemptNumber: attempt.attemptNumber,
+        coinsPaid: attempt.coinsPaid,
+        purchaseDate: attempt.serverStartTime,
+        status: attempt.status,
+        score: attempt.score,
+        completedAt: attempt.completedAt
+      });
+
+      // Update first purchase date if this is earlier
+      if (attempt.serverStartTime < testData.firstPurchaseDate) {
+        testData.firstPurchaseDate = attempt.serverStartTime;
+      }
+    }
+
+    // Convert map to array
+    const purchasedTests = Array.from(testMap.values());
+
+    // Calculate total coins spent
+    const totalCoinsSpent = purchasedTests.reduce((sum, test) => sum + test.totalCoinsPaid, 0);
+
+    // Get user's current coin balance
+    const user = await User.findById(userId);
+    const currentCoinBalance = user?.rewards?.coins || 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalCoinsSpent,
+        currentCoinBalance,
+        purchasedTestsCount: purchasedTests.length,
+        purchasedTests
+      },
+      message: 'Purchased tests retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Get purchased tests error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get purchased tests'
+    });
+  }
+};
+
 export const getUserAttempts = async (req, res) => {
   try {
     const { testId } = req.params;

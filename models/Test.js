@@ -45,6 +45,17 @@ const testSchema = new mongoose.Schema({
         message: 'Time limit must be a whole number'
       }
     },
+    coinFee: {
+      type: Number,
+      default: 0,  // 0 means free (default)
+      min: [0, 'Coin fee cannot be negative'],
+      validate: {
+        validator: function(value) {
+          return Number.isInteger(value);
+        },
+        message: 'Coin fee must be a whole number'
+      }
+    },
     isPublic: {
       type: Boolean,
       default: false

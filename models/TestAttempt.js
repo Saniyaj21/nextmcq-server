@@ -156,6 +156,12 @@ const testAttemptSchema = new mongoose.Schema({
         xp: { type: Number, default: 0 }
       }
     }
+  },
+
+  // Payment tracking
+  coinsPaid: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
