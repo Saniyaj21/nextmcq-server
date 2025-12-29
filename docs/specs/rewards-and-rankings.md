@@ -29,12 +29,12 @@
 
 ### **Level Structure**
 - **Range**: Level 1-unlimited
-- **XP Requirements**: Increase 10% per level
+- **XP Requirements**: Increase 20% per level
   ```
   Level 1: 100 XP
-  Level 2: 110 XP (100 + 10%)
-  Level 3: 121 XP (110 + 10%)
-  Level N: Previous Level XP × 1.1
+  Level 2: 120 XP (100 + 20%)
+  Level 3: 144 XP (120 + 20%)
+  Level N: Previous Level XP × 1.2
   ```
 
 ### **Level Benefits**

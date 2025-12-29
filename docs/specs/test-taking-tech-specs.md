@@ -484,16 +484,16 @@ completed → (final state)
 ### **Required Logs**
 ```javascript
 // Test start
-console.log(`Test started: userId=${userId}, testId=${testId}, attemptId=${attemptId}`);
+// Log test start event (use proper logging service in production)
 
 // Answer submission
-console.log(`Answer submitted: attemptId=${attemptId}, questionId=${questionId}, answer=${selectedAnswer}`);
+// Log answer submission event (use proper logging service in production)
 
 // Test completion
-console.log(`Test completed: attemptId=${attemptId}, score=${score}, timeSpent=${timeSpent}`);
+// Log test completion event (use proper logging service in production)
 
 // Reward distribution
-console.log(`Rewards distributed: userId=${userId}, coins=${coins}, xp=${xp}`);
+// Log reward distribution event (use proper logging service in production)
 
 // Security events
 console.warn(`Time validation failed: attemptId=${attemptId}, timeDiff=${timeDifference}`);

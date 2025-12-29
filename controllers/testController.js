@@ -105,6 +105,13 @@ export const getAllTests = async (req, res) => {
       pipeline.push({ $match: { averageRating: { $gte: minRatingNum } } });
     }
 
+    // Filter out tests with less than 10 questions
+    pipeline.push({
+      $match: {
+        $expr: { $gte: [{ $size: { $ifNull: ['$questions', []] } }, 10] }
+      }
+    });
+
     // Sorting
     const sortStage = {};
     if (sortBy === 'recent') sortStage.createdAt = -1;
@@ -196,21 +203,14 @@ export const createTest = async (req, res) => {
 
     // Distribute rewards to teacher for creating test
     const teacherReward = REWARDS.TEACHER.CREATE_TEST;
-    await User.findByIdAndUpdate(createdBy, {
-      $inc: {
-        'rewards.coins': teacherReward.coins,
-        'rewards.xp': teacherReward.xp,
-        'teacher.testsCreated': 1
-      }
-    });
-
-    // Update teacher level based on new XP
     const teacher = await User.findById(createdBy);
-    const newLevel = teacher.calculateLevel();
-    if (newLevel > teacher.rewards.level) {
-      await User.findByIdAndUpdate(createdBy, {
-        $set: { 'rewards.level': newLevel }
-      });
+    
+    if (teacher) {
+      // Update teacher stats
+      teacher.teacher.testsCreated = (teacher.teacher.testsCreated || 0) + 1;
+
+      // Use addRewards() method for consistency - automatically updates level
+      await teacher.addRewards(teacherReward.coins, teacherReward.xp, 'test_creation');
     }
 
     // Create post for teacher test creation

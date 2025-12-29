@@ -87,17 +87,20 @@ const calculateTestRewards = (attempt, test, isFirstCompletion = false) => {
 const distributeTeacherRewards = async (testId, studentAttempt) => {
   try {
     const test = await Test.findById(testId).populate('createdBy');
-    const teacher = test.createdBy;
+    const teacher = await User.findById(test.createdBy._id);
+
+    if (!teacher) {
+      console.error('Teacher not found for rewards distribution');
+      return;
+    }
 
     const teacherReward = REWARDS.TEACHER.STUDENT_ATTEMPT;
 
-    await User.findByIdAndUpdate(teacher._id, {
-      $inc: {
-        'rewards.coins': teacherReward.coins,
-        'rewards.xp': teacherReward.xp,
-        'teacher.totalAttemptsOfStudents': 1
-      }
-    });
+    // Update teacher stats
+    teacher.teacher.totalAttemptsOfStudents = (teacher.teacher.totalAttemptsOfStudents || 0) + 1;
+
+    // Use addRewards() method for consistency - automatically updates level
+    await teacher.addRewards(teacherReward.coins, teacherReward.xp, 'student_attempt');
   } catch (error) {
     console.error('Error distributing teacher rewards:', error);
   }
@@ -156,7 +159,6 @@ export const startTest = async (req, res) => {
         await oldAttempt.save();
       }
       
-      console.log(`[StartTest] Auto-abandoned ${inProgressAttempts.length} in-progress attempt(s) for user ${userId} on test ${testId}`);
     }
 
     // Get attempt number
@@ -289,13 +291,11 @@ export const submitAnswer = async (req, res) => {
  * POST /api/test-taking/submit-test/:attemptId
  */
 export const submitTest = async (req, res) => {
-  console.log('[DEBUG] Entering submitTest with attemptId:', req.params.attemptId);
   try {
     const { attemptId } = req.params;
     const { answers: clientAnswers, clientEndTime } = req.body;
     const userId = req.userId;
 
-    console.log('[DEBUG] Processing submission for user:', userId);
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -384,8 +384,6 @@ export const submitTest = async (req, res) => {
     });
 
     // Update user statistics
-    // Simplify update logic for debugging and reliability
-    console.log('[UserStats] Starting user stats update for user:', userId);
     
     const userToUpdate = await User.findById(userId);
     if (userToUpdate) {
@@ -393,8 +391,6 @@ export const submitTest = async (req, res) => {
       userToUpdate.student.totalTests = (userToUpdate.student.totalTests || 0) + 1;
       userToUpdate.student.correctAnswers = (userToUpdate.student.correctAnswers || 0) + correctCount;
       userToUpdate.student.totalQuestions = (userToUpdate.student.totalQuestions || 0) + totalQuestions;
-      userToUpdate.rewards.coins += rewards.coins;
-      userToUpdate.rewards.xp += rewards.xp;
 
       // Update attemptedTests array
       if (!userToUpdate.student.attemptedTests) {
@@ -406,25 +402,16 @@ export const submitTest = async (req, res) => {
       );
 
       if (testIndex >= 0) {
-        console.log('[UserStats] Test already in array. Current count:', userToUpdate.student.attemptedTests[testIndex].attemptsCount);
         userToUpdate.student.attemptedTests[testIndex].attemptsCount += 1;
-        console.log('[UserStats] New count:', userToUpdate.student.attemptedTests[testIndex].attemptsCount);
       } else {
-        console.log('[UserStats] Test not in array. Adding new entry.');
         userToUpdate.student.attemptedTests.push({
           testId: attempt.testId._id,
           attemptsCount: 1
         });
       }
 
-      // Calculate new level
-      const newLevel = LEVEL_SYSTEM.calculateLevelFromXP(userToUpdate.rewards.xp);
-      if (newLevel > userToUpdate.rewards.level) {
-        userToUpdate.rewards.level = newLevel;
-      }
-
-      await userToUpdate.save();
-      console.log('[UserStats] User stats saved successfully');
+      // Use addRewards() method for consistency - automatically updates level
+      await userToUpdate.addRewards(rewards.coins, rewards.xp, 'test_completion');
     } else {
       console.error('[UserStats] User not found for stats update:', userId);
     }

@@ -39,7 +39,6 @@ export const processMonthlyRewards = async (req, res) => {
       previousYear = currentYear - 1;
     }
 
-    console.log(`[MonthlyRewards] Processing rewards for ${previousMonth}/${previousYear}`);
 
     // Check if already processed
     const existingReward = await MonthlyReward.findOne({ 
@@ -72,7 +71,6 @@ export const processMonthlyRewards = async (req, res) => {
 
     for (const category of categories) {
       try {
-        console.log(`[MonthlyRewards] Processing category: ${category}`);
         const categoryResult = await processCategoryRewards(previousMonth, previousYear, category);
         results.categories[category] = categoryResult;
         results.totalRewardsAwarded += categoryResult.rewardsAwarded;
@@ -111,12 +109,10 @@ async function processCategoryRewards(month, year, category) {
   
   if (!snapshot) {
     // Create snapshot of current rankings (now includes all users for UNPLACED badges)
-    console.log(`[MonthlyRewards] Creating snapshot for ${category}`);
     snapshot = await createRankingSnapshot(month, year, category);
   }
 
   if (snapshot.processed) {
-    console.log(`[MonthlyRewards] Snapshot already processed for ${category}`);
     return {
       category,
       status: 'already_processed',
@@ -182,7 +178,6 @@ async function createRankingSnapshot(month, year, category) {
     processed: false
   });
 
-  console.log(`[MonthlyRewards] Snapshot created: ${snapshot._id} for ${category} with ${leaderboard.length} users`);
   return snapshot;
 }
 
@@ -329,11 +324,7 @@ async function awardSingleReward({ user, rank, tier, coins, badge, month, year, 
     throw new Error(`User not found: ${userId}`);
   }
 
-  // Add coins (no XP for ranking rewards)
-  userDoc.rewards.coins = (userDoc.rewards.coins || 0) + coins;
-  await userDoc.save();
-
-  // Add badge
+  // Add badge first
   if (!userDoc.badges) {
     userDoc.badges = [];
   }
@@ -347,8 +338,10 @@ async function awardSingleReward({ user, rank, tier, coins, badge, month, year, 
     rank: rank,
     earnedAt: new Date()
   });
-  
-  await userDoc.save();
+
+  // Add coins (no XP for ranking rewards) - use addRewards() for consistency
+  // This will also save the badge and coins together
+  await userDoc.addRewards(coins, 0, 'monthly_ranking_reward');
 
   // Create reward record
   await MonthlyReward.create({
@@ -365,7 +358,6 @@ async function awardSingleReward({ user, rank, tier, coins, badge, month, year, 
     awardedAt: new Date()
   });
 
-  console.log(`[MonthlyRewards] Awarded ${tier} to user ${userId}: ${coins} coins, badge: ${badge}`);
 }
 
 /**

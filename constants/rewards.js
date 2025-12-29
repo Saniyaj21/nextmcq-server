@@ -51,8 +51,8 @@ export const LEVEL_SYSTEM = {
   // Starting XP requirement for level 1
   BASE_XP: 100,
 
-  // XP increase percentage per level (10%)
-  XP_MULTIPLIER: 1.1,
+  // XP increase percentage per level (20%)
+  XP_MULTIPLIER: 1.2,
 
   // Calculate XP required for a specific level
   calculateXPForLevel: (level) => {

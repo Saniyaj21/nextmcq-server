@@ -100,4 +100,22 @@ For detailed API documentation, see:
 - [Authentication API](./authentication.md)
 - [User Management API](./user-management.md)
 - [MCQ Management API](./mcq-management.md)
+- [Complete API Reference](../../../mobile/docs/api/endpoints.md)
+
+## 🔄 API Versioning
+
+Current version: **v1**
+
+All endpoints are prefixed with `/api/` and do not include version numbers in the path. Future versions may use `/api/v2/` prefix.
+
+## 📝 Notes
+
+- All timestamps are in ISO 8601 format
+- All ObjectIds are MongoDB ObjectId strings
+- Pagination uses 1-based page numbers
+- Default limit for list endpoints is 50, maximum is 100
+- All endpoints return JSON responses
+- Error responses follow standard format: `{ success: false, message: "..." }`
+- [User Management API](./user-management.md)
+- [MCQ Management API](./mcq-management.md)
 - [Monthly Rewards System](../../../docs/specs/monthly-rewards-and-badges.md)

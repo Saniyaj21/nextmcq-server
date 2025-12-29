@@ -7,6 +7,10 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Changed
+- **Level System**: Changed XP multiplier from 10% (1.1) to 20% (1.2) per level - creates steeper, more challenging progression while maintaining reasonable balance
+- **Test Filtering**: Updated `getAllTests` endpoint to exclude tests with less than 10 questions from the list of available tests for users
+
 ### Added
 - Added `attemptedTests` array to User model (student role) to track attempted test IDs and attempt counts
 - Updated `submitTest` controller to populate and increment `attemptedTests` statistics for students

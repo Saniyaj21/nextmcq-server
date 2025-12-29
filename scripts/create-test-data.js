@@ -10,7 +10,6 @@ dotenv.config();
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nextmcq');
-    console.log('MongoDB connected');
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);
@@ -19,7 +18,6 @@ const connectDB = async () => {
 
 const createSingleQuestionTest = async () => {
   try {
-    console.log('Creating single question test for quick testing...');
 
     // Find an existing user to be the test creator (create one if none exists)
     let creator = await User.findOne();
@@ -30,7 +28,6 @@ const createSingleQuestionTest = async () => {
         role: 'teacher'
       });
       await creator.save();
-      console.log('Created test teacher:', creator._id);
     }
 
     // Create a single sample question
@@ -43,7 +40,6 @@ const createSingleQuestionTest = async () => {
     });
 
     await question.save();
-    console.log('Created question:', question.question);
 
     // Create a public test with just one question for easy testing
     const test = new Test({
@@ -60,19 +56,6 @@ const createSingleQuestionTest = async () => {
 
     await test.save();
 
-    console.log('\n✅ Single question test created successfully!');
-    console.log('📋 Test Details:');
-    console.log('   Title:', test.title);
-    console.log('   ID:', test._id);
-    console.log('   Questions: 1');
-    console.log('   Time Limit:', test.timeLimit, 'minutes');
-    console.log('   Public Access: Yes');
-    console.log('   Created by:', creator.name);
-    console.log('   Question:', question.question);
-    console.log('   Correct Answer:', question.options[question.correctAnswer]);
-
-    console.log('\n🚀 Ready for quick testing!');
-    console.log('You can now quickly test the take-test flow with just one question.');
 
   } catch (error) {
     console.error('Error creating single question test:', error);
@@ -81,12 +64,10 @@ const createSingleQuestionTest = async () => {
 
 const createAnotherTest = async () => {
   try {
-    console.log('Creating another single question test...');
 
     // Find the existing user
     const creator = await User.findOne({ role: 'teacher' });
     if (!creator) {
-      console.log('No teacher found, skipping additional test creation');
       return;
     }
 
@@ -100,7 +81,6 @@ const createAnotherTest = async () => {
     });
 
     await question.save();
-    console.log('Created question:', question.question);
 
     // Create another public test
     const test = new Test({
@@ -117,16 +97,6 @@ const createAnotherTest = async () => {
 
     await test.save();
 
-    console.log('\n✅ Second single question test created successfully!');
-    console.log('📋 Test Details:');
-    console.log('   Title:', test.title);
-    console.log('   ID:', test._id);
-    console.log('   Questions: 1');
-    console.log('   Time Limit:', test.timeLimit, 'minutes');
-    console.log('   Public Access: Yes');
-    console.log('   Created by:', creator.name);
-    console.log('   Question:', question.question);
-    console.log('   Correct Answer:', question.options[question.correctAnswer]);
 
   } catch (error) {
     console.error('Error creating another test:', error);
@@ -135,7 +105,6 @@ const createAnotherTest = async () => {
 
 const createTestData = async () => {
   try {
-    console.log('Creating test data for testing...');
 
     // Find an existing user to be the test creator (create one if none exists)
     let creator = await User.findOne();
@@ -146,7 +115,6 @@ const createTestData = async () => {
         role: 'teacher'
       });
       await creator.save();
-      console.log('Created test teacher:', creator._id);
     }
 
     // Create sample questions
@@ -212,7 +180,6 @@ const createTestData = async () => {
       const question = new Question(qData);
       await question.save();
       createdQuestions.push(question._id);
-      console.log('Created question:', question.question.substring(0, 50) + '...');
     }
 
     // Create a public test for easy testing
@@ -230,17 +197,6 @@ const createTestData = async () => {
 
     await test.save();
 
-    console.log('\n✅ Test created successfully!');
-    console.log('📋 Test Details:');
-    console.log('   Title:', test.title);
-    console.log('   ID:', test._id);
-    console.log('   Questions:', createdQuestions.length);
-    console.log('   Time Limit:', test.timeLimit, 'minutes');
-    console.log('   Public Access: Yes');
-    console.log('   Created by:', creator.name);
-
-    console.log('\n🚀 Ready for testing!');
-    console.log('You can now navigate to the test in the mobile app and test the complete take-test flow.');
 
   } catch (error) {
     console.error('Error creating test data:', error);

@@ -33,15 +33,25 @@ A robust Node.js/Express API server powering the NextMCQ gamified learning platf
 
    # JWT
    JWT_SECRET=your-super-secret-jwt-key-here
+   JWT_EXPIRES_IN=7d
 
    # Email Service (Gmail)
-   EMAIL_USER=your-email@gmail.com
-   EMAIL_PASS=your-app-specific-password
+   SMPT_HOST=smtp.gmail.com
+   SMPT_PORT=587
+   SMPT_SERVICE=gmail
+   SMPT_MAIL=your-email@gmail.com
+   SMPT_PASSWORD=your-app-specific-password
 
    # Cloudinary (for image uploads)
    CLOUDINARY_CLOUD_NAME=your-cloud-name
    CLOUDINARY_API_KEY=your-api-key
    CLOUDINARY_API_SECRET=your-api-secret
+
+   # Monthly Rewards (for cron job)
+   MONTHLY_REWARDS_API_KEY=your-monthly-rewards-api-key
+
+   # Admin Email (for feedback notifications)
+   ADMIN_EMAIL=admin@example.com
 
    # Server
    PORT=8080
@@ -85,11 +95,25 @@ server/
 │   ├── User.js      # User model
 │   ├── Test.js      # Test model
 │   ├── Question.js  # Question model
-│   └── TestAttempt.js
+│   ├── TestAttempt.js
+│   ├── MonthlyRankingSnapshot.js  # Monthly ranking snapshots
+│   ├── MonthlyReward.js           # Monthly reward records
+│   ├── Feedback.js                # User feedback
+│   ├── Institute.js               # Educational institutes
+│   └── Banner.js                  # App banners
 ├── routes/          # API route definitions
 │   ├── auth.js      # Authentication routes
 │   ├── user.js      # User management
-│   └── ...
+│   ├── test.js      # Test management
+│   ├── question.js  # Question management
+│   ├── testTaking.js # Test taking flow
+│   ├── ranking.js   # Leaderboard and monthly rewards
+│   ├── feedback.js  # Feedback system
+│   ├── invite.js    # Test access management
+│   ├── rating.js    # Test rating system
+│   ├── institutes.js # Institute management
+│   ├── banner.js    # Banner management
+│   └── post.js      # Posts/announcements
 ├── utils/           # Utility functions
 │   └── sendMail.js  # Email utility
 ├── docs/            # API documentation
@@ -133,17 +157,58 @@ DELETE /api/question/:id       # Delete question
 
 ### **Test Taking**
 ```
-POST   /api/test-taking/start   # Start test attempt
-POST   /api/test-taking/:id/answer  # Submit answer
-POST   /api/test-taking/:id/complete  # Complete test
-GET    /api/test-taking/history # Get attempt history
+GET    /api/test-taking/get-test-details/:testId  # Get test details
+POST   /api/test-taking/request-access/:testId    # Request test access
+POST   /api/test-taking/start-test/:testId         # Start test attempt
+POST   /api/test-taking/submit-answer/:attemptId  # Submit answer
+POST   /api/test-taking/submit-test/:attemptId    # Complete test
+GET    /api/test-taking/test-results/:attemptId   # Get test results
+GET    /api/test-taking/user-attempts/:testId      # Get user attempts
 ```
 
-### **Social Features**
+### **Ranking & Rewards**
 ```
-GET    /api/ranking/global      # Global leaderboard
-GET    /api/ranking/institute   # Institute rankings
-POST   /api/user/referral       # Generate referral code
+GET    /api/ranking/leaderboard                    # Get leaderboard
+GET    /api/ranking/user-rank                      # Get user rank
+GET    /api/ranking/monthly-rewards/history        # Get reward history
+POST   /api/ranking/monthly-rewards                # Process monthly rewards (cron)
+```
+
+### **Feedback**
+```
+POST   /api/feedback/submit        # Submit feedback
+GET    /api/feedback/my-feedback   # Get user's feedback history
+```
+
+### **Invites & Access Management**
+```
+GET    /api/invites/teacher-requests  # Get pending requests
+POST   /api/invites/approve            # Approve access request
+POST   /api/invites/reject              # Reject access request
+POST   /api/invites/remove-access       # Remove user access
+POST   /api/invites/invite-user        # Invite user to test
+```
+
+### **Rating**
+```
+POST   /api/rating/rate-test/:testId      # Rate a test
+GET    /api/rating/user-rating/:testId   # Get user's rating
+GET    /api/rating/test-rating/:testId    # Get test rating stats
+```
+
+### **Institutes**
+```
+GET    /api/institutes/search    # Search institutes
+GET    /api/institutes/popular   # Get popular institutes
+GET    /api/institutes/:id       # Get institute by ID
+GET    /api/institutes           # Get all institutes
+POST   /api/institutes           # Create institute
+```
+
+### **Banners**
+```
+GET    /api/banner/get-banners   # Get active banners
+POST   /api/banner/create-banner # Create banner (admin)
 ```
 
 ## 🎮 **Gamification Engine**
@@ -218,10 +283,11 @@ const calculateTestRewards = (isFirstAttempt, accuracy) => {
 - Error handling with detailed messages
 
 ### **Rate Limiting & Security**
+- CORS package installed (^2.8.5) - needs configuration
 - API rate limiting (planned)
-- CORS configuration (planned)
 - Input validation middleware
 - Secure environment variable handling
+- Monthly rewards API key authentication for cron jobs
 
 ## 📊 **Performance & Optimization**
 

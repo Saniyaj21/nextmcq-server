@@ -1,7 +1,7 @@
+// Script to create 200 test users in 4 batches (50 users per batch)
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import readline from 'readline';
 import User from '../models/User.js';
 import Institute from '../models/Institute.js';
 
@@ -50,6 +50,7 @@ const generateUserData = (index, institutes) => {
     password: 'Test@123', // Will be hashed
     role,
     isActive: true,
+    isEmailVerified: true,
     rewards: {
       coins,
       xp,
@@ -67,8 +68,7 @@ const generateUserData = (index, institutes) => {
     userData.student = {
       totalTests,
       correctAnswers,
-      totalQuestions,
-      averageAccuracy: ((correctAnswers / totalQuestions) * 100).toFixed(2)
+      totalQuestions
     };
   } else {
     userData.teacher = {
@@ -82,38 +82,18 @@ const generateUserData = (index, institutes) => {
   return userData;
 };
 
-// Main seed function
-const seedUsers = async () => {
+// Main seed function - creates 50 users in a batch
+const seedUsersBatch = async (batchNumber, startIndex) => {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/nextmcq');
-    
-    // Check if we should clear existing test users
-    const existingTestUsers = await User.countDocuments({ email: /@test\.com$/ });
-    if (existingTestUsers > 0) {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-      });
-      
-      await new Promise((resolve) => {
-        rl.question('Delete existing test users? (yes/no): ', async (answer) => {
-          if (answer.toLowerCase() === 'yes') {
-            const deleted = await User.deleteMany({ email: /@test\.com$/ });
-          }
-          rl.close();
-          resolve();
-        });
-      });
-    }
-    
+    console.log(`\n🚀 Starting Batch ${batchNumber}/4 (Users ${startIndex} to ${startIndex + 49})...\n`);
+
     // Get all institutes
     const institutes = await Institute.find({});
     
-    // Generate and insert users
+    // Generate users for this batch
     const users = [];
     
-    for (let i = 1; i <= 200; i++) {
+    for (let i = startIndex; i < startIndex + 50; i++) {
       const userData = generateUserData(i, institutes);
       
       // Hash password
@@ -121,12 +101,62 @@ const seedUsers = async () => {
       userData.password = await bcrypt.hash(userData.password, salt);
       
       users.push(userData);
-      
     }
     
     // Bulk insert
     const insertedUsers = await User.insertMany(users);
     
+    // Count by role
+    const students = insertedUsers.filter(u => u.role === 'student').length;
+    const teachers = insertedUsers.filter(u => u.role === 'teacher').length;
+    
+    console.log(`✅ Batch ${batchNumber}/4 completed!`);
+    console.log(`   - Created: ${insertedUsers.length} users`);
+    console.log(`   - Students: ${students}, Teachers: ${teachers}`);
+    
+    return insertedUsers.length;
+  } catch (error) {
+    console.error(`❌ Error in batch ${batchNumber}:`, error.message);
+    throw error;
+  }
+};
+
+// Main function to create all 200 users in 4 batches
+const create200Users = async () => {
+  try {
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/nextmcq');
+    console.log('✅ Connected to MongoDB\n');
+
+    // Check existing test users
+    const existingTestUsers = await User.countDocuments({ email: /@test\.com$/ });
+    if (existingTestUsers > 0) {
+      console.log(`⚠️  Found ${existingTestUsers} existing test users`);
+      console.log('   Continuing to add 200 more users...\n');
+    }
+
+    let totalCreated = 0;
+    
+    // Create 4 batches of 50 users each
+    for (let batch = 1; batch <= 4; batch++) {
+      const startIndex = (batch - 1) * 50 + 1;
+      const created = await seedUsersBatch(batch, startIndex);
+      totalCreated += created;
+      
+      // Small delay between batches to avoid overwhelming the database
+      if (batch < 4) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    console.log(`\n✨ Successfully created ${totalCreated} users in 4 batches!`);
+    console.log(`📊 Summary:`);
+    console.log(`   - Total users created: ${totalCreated}`);
+    console.log(`   - Batches: 4 (50 users per batch)`);
+    
+    const finalCount = await User.countDocuments({ email: /@test\.com$/ });
+    console.log(`   - Total test users in database: ${finalCount}`);
+
   } catch (error) {
     console.error('❌ Error seeding users:', error);
     process.exit(1);
@@ -137,4 +167,5 @@ const seedUsers = async () => {
 };
 
 // Run the seed function
-seedUsers();
+create200Users();
+
