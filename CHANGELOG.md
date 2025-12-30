@@ -10,9 +10,11 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ### Changed
 - **Level System**: Changed XP multiplier from 10% (1.1) to 20% (1.2) per level - creates steeper, more challenging progression while maintaining reasonable balance
 - **Test Filtering**: Updated `getAllTests` endpoint to exclude tests with less than 10 questions from the list of available tests for users
+- **API Enhancement**: Updated `/api/question/get-questions` endpoint to support pagination with query parameters (page, limit)
 
 ### Added
 - Added `attemptedTests` array to User model (student role) to track attempted test IDs and attempt counts
+- **Pagination**: Backend support for paginated question retrieval - returns 30 questions per page with pagination metadata (page, limit, totalCount, totalPages, hasMore)
 - Updated `submitTest` controller to populate and increment `attemptedTests` statistics for students
 - Updated `getPublicProfile` (userController) and `getProfile` (authController) to return `attemptedTests` data
 - **Auto-Abandon System**: Added automatic abandonment of in-progress test attempts when user starts a new attempt - prevents permanent blocks and keeps database clean

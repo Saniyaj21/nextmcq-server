@@ -8,7 +8,7 @@ import User from '../models/User.js';
 import Question from '../models/Question.js';
 import Rating from '../models/Rating.js';
 import Post from '../models/Post.js';
-import { REWARDS, LEVEL_SYSTEM } from '../constants/rewards.js';
+import { REWARDS, LEVEL_SYSTEM, REVENUE_SHARE } from '../constants/rewards.js';
 import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.js';
 
 /**
@@ -186,6 +186,18 @@ export const startTest = async (req, res) => {
       try {
         await user.deductCoins(coinFee, `test_fee_${testId}`);
         coinsPaid = coinFee;
+
+        // Transfer 80% of coin fee to teacher (20% platform fee)
+        const teacherCoins = Math.floor(coinFee * REVENUE_SHARE.TEACHER_SHARE);
+        
+        if (teacherCoins > 0) {
+          const teacher = await User.findById(test.createdBy);
+          if (teacher) {
+            await teacher.addRewards(teacherCoins, 0, `test_fee_earned_${testId}`);
+          } else {
+            console.error(`[TestFee] Teacher not found for test ${testId}, createdBy: ${test.createdBy}`);
+          }
+        }
       } catch (error) {
         return res.status(400).json({
           success: false,

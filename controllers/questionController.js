@@ -3,6 +3,7 @@ import Test from '../models/Test.js';
 
 /**
  * Get all questions created by the authenticated user
+ * Supports pagination with query params: page (default: 1) and limit (default: 30)
  */
 export const getQuestions = async (req, res) => {
   try {
@@ -12,13 +13,37 @@ export const getQuestions = async (req, res) => {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    // Get questions created by the authenticated user
+    // Parse pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 30;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination info
+    const totalCount = await Question.countDocuments({ createdBy: userId });
+
+    // Get questions created by the authenticated user with pagination
     const questions = await Question.find({ createdBy: userId })
       .populate('createdBy', 'name email')
       .populate('tests', 'title')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json({ success: true, data: questions });
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasMore = page < totalPages;
+
+    res.status(200).json({ 
+      success: true, 
+      data: questions,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasMore
+      }
+    });
   } catch (error) {
     console.error('Get questions error:', error);
     res.status(500).json({ success: false, message: 'Failed to get questions' });

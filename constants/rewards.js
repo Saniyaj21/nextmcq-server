@@ -144,6 +144,12 @@ export const COIN_SPENDING = {
   PREMIUM_TEST_ACCESS: 100
 };
 
+export const REVENUE_SHARE = {
+  // Test fee revenue share: 80% to teacher, 20% platform fee
+  TEACHER_SHARE: 0.8,  // 80%
+  PLATFORM_SHARE: 0.2  // 20%
+};
+
 export const SYSTEM_LIMITS = {
   // Maximum daily rewards to prevent abuse
   MAX_DAILY_COINS: 1000,
@@ -229,6 +235,7 @@ export default {
   LEVEL_SYSTEM,
   RANKING_SYSTEM,
   COIN_SPENDING,
+  REVENUE_SHARE,
   SYSTEM_LIMITS,
   ACCURACY_THRESHOLDS,
   getAccuracyTier,

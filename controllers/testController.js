@@ -9,17 +9,47 @@ import { REWARDS } from '../constants/rewards.js';
 export const getTests = async (req, res) => {
   try {
     const userId = req?.userId;
+    const includeEarnings = req?.query?.includeEarnings === 'true';
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
     // Get tests created by the authenticated user
-    const tests = await Test.find({ createdBy: userId })
+    let tests = await Test.find({ createdBy: userId })
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
       .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
       .sort({ createdAt: -1 });
+
+    // If earnings requested, calculate earnings from test attempts
+    if (includeEarnings) {
+      const { REVENUE_SHARE } = await import('../constants/rewards.js');
+      
+      // Calculate earnings for each test
+      const testsWithEarnings = await Promise.all(
+        tests.map(async (test) => {
+          const testObj = test.toObject();
+          
+          // Sum all coinsPaid for this test (what students paid)
+          const totalCoinsPaid = await TestAttempt.aggregate([
+            { $match: { testId: test._id, coinsPaid: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$coinsPaid' } } }
+          ]);
+          
+          const totalPaid = totalCoinsPaid[0]?.total || 0;
+          // Calculate teacher earnings (80% of what students paid)
+          const earnings = Math.floor(totalPaid * REVENUE_SHARE.TEACHER_SHARE);
+          
+          testObj.earnings = earnings;
+          testObj.totalCoinsPaid = totalPaid;
+          
+          return testObj;
+        })
+      );
+      
+      tests = testsWithEarnings;
+    }
 
     res.status(200).json({ success: true, data: tests });
   } catch (error) {

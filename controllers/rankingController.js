@@ -121,7 +121,7 @@ export const getLeaderboard = async (req, res) => {
 
     const totalUsers = await User.countDocuments(countQuery);
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       message: 'Leaderboard retrieved successfully',
       data: {
@@ -139,7 +139,11 @@ export const getLeaderboard = async (req, res) => {
           level: levelFilter
         }
       }
-    });
+    };
+
+    console.log('LEADERBOARD RESPONSE:', JSON.stringify(responseData, null, 2));
+
+    res.status(200).json(responseData);
 
   } catch (error) {
     console.error('Get Leaderboard Error:', error);
