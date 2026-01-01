@@ -7,6 +7,7 @@ import testRoutes from './routes/test.js';
 import testTakingRoutes from './routes/testTaking.js';
 import questionRoutes from './routes/question.js';
 import rankingRoutes from './routes/ranking.js';
+import rankingV2Routes from './routes/rankingV2.js';
 import userRoutes from './routes/user.js';
 import ratingRoutes from './routes/rating.js';
 import inviteRoutes from './routes/invite.js';
@@ -41,6 +42,7 @@ app.use('/api/test', testRoutes);
 app.use('/api/test-taking', testTakingRoutes);
 app.use('/api/question', questionRoutes);
 app.use('/api/ranking', rankingRoutes);
+app.use('/api/ranking', rankingV2Routes); // V2 endpoints (production-grade)
 app.use('/api/user', userRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/invites', inviteRoutes);

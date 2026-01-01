@@ -9,6 +9,7 @@ import Post from './Post.js';
 import Feedback from './Feedback.js';
 import MonthlyRankingSnapshot from './MonthlyRankingSnapshot.js';
 import MonthlyReward from './MonthlyReward.js';
+import MonthlyRewardJob from './MonthlyRewardJob.js';
 
 export {
   User,
@@ -21,7 +22,8 @@ export {
   Post,
   Feedback,
   MonthlyRankingSnapshot,
-  MonthlyReward
+  MonthlyReward,
+  MonthlyRewardJob
 };
 
 export default {
@@ -35,5 +37,6 @@ export default {
   Post,
   Feedback,
   MonthlyRankingSnapshot,
-  MonthlyReward
+  MonthlyReward,
+  MonthlyRewardJob
 };
