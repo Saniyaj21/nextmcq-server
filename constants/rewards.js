@@ -215,14 +215,16 @@ export const getRankingScoreAggregation = () => {
           then: {
             // Student ranking: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
             // Fast calculation: No division, no rounding - optimized for performance
+            // Use $ifNull to handle null/undefined values (treat as 0)
             $add: [
-              { $multiply: ['$student.totalTests', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-              { $multiply: ['$student.correctAnswers', RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT] }
+              { $multiply: [{ $ifNull: ['$student.totalTests', 0] }, RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
+              { $multiply: [{ $ifNull: ['$student.correctAnswers', 0] }, RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT] }
             ]
           },
           else: {
             // For teachers: totalAttemptsOfStudents × 1
-            $multiply: ['$teacher.totalAttemptsOfStudents', 1]
+            // Use $ifNull to handle null/undefined values (treat as 0)
+            $multiply: [{ $ifNull: ['$teacher.totalAttemptsOfStudents', 0] }, 1]
           }
         }
       }

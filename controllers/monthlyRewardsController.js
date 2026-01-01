@@ -2,6 +2,7 @@
 import User from '../models/User.js';
 import MonthlyRankingSnapshot from '../models/MonthlyRankingSnapshot.js';
 import MonthlyReward from '../models/MonthlyReward.js';
+import MonthlyRewardJob from '../models/MonthlyRewardJob.js';
 import { RANKING_SYSTEM } from '../constants/rewards.js';
 import { getRankingScoreAggregation } from '../constants/rewards.js';
 
@@ -40,54 +41,65 @@ export const processMonthlyRewards = async (req, res) => {
     }
 
 
-    // Check if already processed
-    const existingReward = await MonthlyReward.findOne({ 
-      month: previousMonth, 
-      year: previousYear 
-    });
+    // Check if already processed or currently processing
+    let jobRecord = await MonthlyRewardJob.findByMonth(previousMonth, previousYear);
     
-    if (existingReward) {
+    if (jobRecord) {
+      const status = jobRecord.status;
       return res.status(200).json({
         success: true,
-        message: 'Monthly rewards already processed',
+        message: status === 'processing' 
+          ? 'Processing is already underway' 
+          : status === 'completed'
+          ? 'Monthly rewards already processed'
+          : 'Previous attempt failed - will retry',
         data: {
           month: previousMonth,
           year: previousYear,
-          status: 'already_processed'
+          status: jobRecord.status,
+          startedAt: jobRecord.startedAt,
+          completedAt: jobRecord.completedAt,
+          duration: jobRecord.duration,
+          results: status === 'completed' ? jobRecord.results : null
         }
       });
     }
 
-    // Process rewards for each category
-    const categories = ['students', 'teachers']; // Only global rankings for now
-    const results = {
+    // Create the "lock" record immediately to prevent duplicate processing
+    jobRecord = await MonthlyRewardJob.create({
       month: previousMonth,
       year: previousYear,
-      categories: {},
-      totalRewardsAwarded: 0,
-      totalCoinsAwarded: 0,
-      errors: []
-    };
+      status: 'processing',
+      startedAt: new Date()
+    });
 
-    for (const category of categories) {
-      try {
-        const categoryResult = await processCategoryRewards(previousMonth, previousYear, category);
-        results.categories[category] = categoryResult;
-        results.totalRewardsAwarded += categoryResult.rewardsAwarded;
-        results.totalCoinsAwarded += categoryResult.coinsAwarded;
-      } catch (error) {
-        console.error(`[MonthlyRewards] Error processing category ${category}:`, error);
-        results.errors.push({
-          category,
-          error: error.message
-        });
-      }
-    }
+    console.log(`[MonthlyRewards] Created job record: ${jobRecord._id} for ${previousMonth}/${previousYear}`);
 
+    // Send immediate success response to cron-job.org to avoid timeout
     res.status(200).json({
       success: true,
-      message: `Monthly rewards processed for ${previousMonth}/${previousYear}`,
-      data: results
+      message: `Monthly rewards processing started for ${previousMonth}/${previousYear}`,
+      data: {
+        month: previousMonth,
+        year: previousYear,
+        status: 'processing',
+        jobId: jobRecord._id,
+        note: 'Rewards are being processed in the background'
+      }
+    });
+
+    // Process rewards asynchronously in the background (non-blocking)
+    // Pass the job record ID so the background task can update it
+    processRewardsInBackground(jobRecord._id, previousMonth, previousYear).catch(async (error) => {
+      console.error('[MonthlyRewards] CRITICAL: Background processing failed:', error);
+      // Update job record so it's not stuck in "processing" forever
+      await MonthlyRewardJob.findByIdAndUpdate(jobRecord._id, { 
+        status: 'failed',
+        completedAt: new Date(),
+        duration: (Date.now() - jobRecord.startedAt.getTime()) / 1000,
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
     });
 
   } catch (error) {
@@ -99,6 +111,78 @@ export const processMonthlyRewards = async (req, res) => {
     });
   }
 };
+
+/**
+ * Process rewards in the background (after HTTP response is sent)
+ */
+async function processRewardsInBackground(jobId, previousMonth, previousYear) {
+  console.log(`[MonthlyRewards] Starting background processing for ${previousMonth}/${previousYear}...`);
+  console.log(`[MonthlyRewards] Job ID: ${jobId}`);
+  
+  const categories = ['students', 'teachers'];
+  const results = {
+    month: previousMonth,
+    year: previousYear,
+    categories: {},
+    totalRewardsAwarded: 0,
+    totalCoinsAwarded: 0,
+    errors: []
+  };
+
+  const startTime = Date.now();
+
+  try {
+    for (const category of categories) {
+      try {
+        console.log(`[MonthlyRewards] Processing category: ${category}...`);
+        const categoryResult = await processCategoryRewards(previousMonth, previousYear, category);
+        results.categories[category] = categoryResult;
+        results.totalRewardsAwarded += categoryResult.rewardsAwarded;
+        results.totalCoinsAwarded += categoryResult.coinsAwarded;
+        console.log(`[MonthlyRewards] ${category} completed: ${categoryResult.rewardsAwarded} rewards awarded`);
+      } catch (error) {
+        console.error(`[MonthlyRewards] Error processing category ${category}:`, error);
+        results.errors.push({
+          category,
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`[MonthlyRewards] Background processing completed in ${duration}s`);
+    console.log(`[MonthlyRewards] Summary:`, JSON.stringify(results, null, 2));
+    
+    // Update job record with success status
+    await MonthlyRewardJob.findByIdAndUpdate(jobId, {
+      status: 'completed',
+      completedAt: new Date(),
+      duration: parseFloat(duration),
+      results: results
+    });
+
+    console.log(`[MonthlyRewards] Job ${jobId} marked as completed`);
+    
+    return results;
+
+  } catch (error) {
+    // Critical error - this shouldn't happen but just in case
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.error(`[MonthlyRewards] CRITICAL ERROR in background processing:`, error);
+    
+    await MonthlyRewardJob.findByIdAndUpdate(jobId, {
+      status: 'failed',
+      completedAt: new Date(),
+      duration: parseFloat(duration),
+      errorMessage: error.message,
+      errorStack: error.stack,
+      results: results // Save partial results
+    });
+
+    throw error; // Re-throw to trigger outer catch handler
+  }
+}
 
 /**
  * Process rewards for a specific category
@@ -392,6 +476,110 @@ export const getUserRewardHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve reward history',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Get monthly reward job status
+ * GET /api/ranking/monthly-rewards/status
+ * Query params: month, year (optional - defaults to last processed month)
+ */
+export const getMonthlyRewardJobStatus = async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    let jobRecord;
+
+    if (month && year) {
+      // Get specific month
+      jobRecord = await MonthlyRewardJob.findByMonth(parseInt(month), parseInt(year));
+      
+      if (!jobRecord) {
+        return res.status(404).json({
+          success: false,
+          message: `No job record found for ${month}/${year}`
+        });
+      }
+    } else {
+      // Get most recent job
+      const recentJobs = await MonthlyRewardJob.findRecent(1);
+      
+      if (recentJobs.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No job records found'
+        });
+      }
+      
+      jobRecord = recentJobs[0];
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Job status retrieved successfully',
+      data: {
+        jobId: jobRecord._id,
+        month: jobRecord.month,
+        year: jobRecord.year,
+        status: jobRecord.status,
+        startedAt: jobRecord.startedAt,
+        completedAt: jobRecord.completedAt,
+        duration: jobRecord.duration,
+        results: jobRecord.status === 'completed' ? jobRecord.results : null,
+        error: jobRecord.status === 'failed' ? {
+          message: jobRecord.errorMessage,
+          stack: process.env.NODE_ENV === 'development' ? jobRecord.errorStack : undefined
+        } : null
+      }
+    });
+
+  } catch (error) {
+    console.error('[MonthlyRewards] Get job status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve job status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Get recent monthly reward jobs
+ * GET /api/ranking/monthly-rewards/jobs
+ * Query params: limit (default: 12)
+ */
+export const getRecentJobs = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 12, 50);
+    const jobs = await MonthlyRewardJob.findRecent(limit);
+
+    res.status(200).json({
+      success: true,
+      message: 'Recent jobs retrieved successfully',
+      data: {
+        jobs: jobs.map(job => ({
+          jobId: job._id,
+          month: job.month,
+          year: job.year,
+          status: job.status,
+          startedAt: job.startedAt,
+          completedAt: job.completedAt,
+          duration: job.duration,
+          totalRewards: job.results?.totalRewardsAwarded || 0,
+          totalCoins: job.results?.totalCoinsAwarded || 0,
+          hasErrors: job.results?.errors?.length > 0 || job.status === 'failed'
+        })),
+        total: jobs.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[MonthlyRewards] Get recent jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve recent jobs',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

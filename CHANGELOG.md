@@ -7,6 +7,14 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Added
+- **MonthlyRewardJob Model**: New model to track monthly reward processing jobs with status, timing, and results - prevents duplicate processing and provides audit trail
+
+### Fixed
+- **Monthly Rewards Timeout Fix**: Implemented background processing with job locking for monthly rewards - immediately responds to cron-job.org (avoiding 30s timeout) while processing rewards asynchronously
+- **Monthly Rewards Duplicate Prevention**: Created job lock mechanism using MonthlyRewardJob to prevent concurrent or duplicate processing of same month
+- **Monthly Rewards Null Handling**: Fixed aggregation to handle null/undefined student and teacher fields using `$ifNull` - ensures all users (including inactive ones with score 0) are included in monthly rewards snapshots
+
 ### Changed
 - **Level System**: Changed XP multiplier from 10% (1.1) to 20% (1.2) per level - creates steeper, more challenging progression while maintaining reasonable balance
 - **Test Filtering**: Updated `getAllTests` endpoint to exclude tests with less than 10 questions from the list of available tests for users
