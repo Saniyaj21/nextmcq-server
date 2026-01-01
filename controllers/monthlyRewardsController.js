@@ -46,23 +46,35 @@ export const processMonthlyRewards = async (req, res) => {
     
     if (jobRecord) {
       const status = jobRecord.status;
-      return res.status(200).json({
-        success: true,
-        message: status === 'processing' 
-          ? 'Processing is already underway' 
-          : status === 'completed'
-          ? 'Monthly rewards already processed'
-          : 'Previous attempt failed - will retry',
-        data: {
-          month: previousMonth,
-          year: previousYear,
-          status: jobRecord.status,
-          startedAt: jobRecord.startedAt,
-          completedAt: jobRecord.completedAt,
-          duration: jobRecord.duration,
-          results: status === 'completed' ? jobRecord.results : null
-        }
-      });
+      
+      // If still processing and started more than 10 minutes ago, allow retry (assume stuck)
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const isStuck = status === 'processing' && jobRecord.startedAt < tenMinutesAgo;
+      
+      if (!isStuck) {
+        return res.status(200).json({
+          success: true,
+          message: status === 'processing' 
+            ? 'Processing is already underway' 
+            : status === 'completed'
+            ? 'Monthly rewards already processed'
+            : 'Previous attempt failed',
+          data: {
+            month: previousMonth,
+            year: previousYear,
+            status: jobRecord.status,
+            startedAt: jobRecord.startedAt,
+            completedAt: jobRecord.completedAt,
+            duration: jobRecord.duration,
+            results: status === 'completed' ? jobRecord.results : null,
+            note: isStuck ? 'Job appears stuck, will allow retry' : null
+          }
+        });
+      }
+      
+      // Job is stuck, delete it and continue with new processing
+      console.log(`[MonthlyRewards] Detected stuck job ${jobRecord._id}, deleting...`);
+      await MonthlyRewardJob.findByIdAndDelete(jobRecord._id);
     }
 
     // Create the "lock" record immediately to prevent duplicate processing
@@ -154,15 +166,20 @@ async function processRewardsInBackground(jobId, previousMonth, previousYear) {
     console.log(`[MonthlyRewards] Background processing completed in ${duration}s`);
     console.log(`[MonthlyRewards] Summary:`, JSON.stringify(results, null, 2));
     
-    // Update job record with success status
+    // Determine if job should be marked as completed or failed
+    const hasErrors = results.errors.length > 0;
+    const finalStatus = hasErrors ? 'failed' : 'completed';
+    
+    // Update job record with appropriate status
     await MonthlyRewardJob.findByIdAndUpdate(jobId, {
-      status: 'completed',
+      status: finalStatus,
       completedAt: new Date(),
       duration: parseFloat(duration),
-      results: results
+      results: results,
+      errorMessage: hasErrors ? `${results.errors.length} category error(s) occurred` : null
     });
 
-    console.log(`[MonthlyRewards] Job ${jobId} marked as completed`);
+    console.log(`[MonthlyRewards] Job ${jobId} marked as ${finalStatus}`);
     
     return results;
 

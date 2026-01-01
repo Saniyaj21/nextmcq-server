@@ -4,7 +4,19 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nextmcq';
     
-    const conn = await mongoose.connect(mongoURI);
+    // Extended timeout settings for long-running operations (e.g., monthly rewards)
+    const options = {
+      serverSelectionTimeoutMS: 30000,  // 30 seconds for initial connection
+      socketTimeoutMS: 300000,           // 5 minutes for operations
+      connectTimeoutMS: 30000,           // 30 seconds for socket connection
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      retryWrites: true,
+      retryReads: true,
+      family: 4 // Use IPv4
+    };
+    
+    const conn = await mongoose.connect(mongoURI, options);
 
     
     // Handle connection events
@@ -13,9 +25,11 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
     });
 
     mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB reconnected successfully');
     });
 
     // Graceful shutdown
