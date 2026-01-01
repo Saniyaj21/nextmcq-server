@@ -11,6 +11,7 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - **Level System**: Changed XP multiplier from 10% (1.1) to 20% (1.2) per level - creates steeper, more challenging progression while maintaining reasonable balance
 - **Test Filtering**: Updated `getAllTests` endpoint to exclude tests with less than 10 questions from the list of available tests for users
 - **API Enhancement**: Updated `/api/question/get-questions` endpoint to support pagination with query parameters (page, limit)
+- **Ranking Tie-Breaker**: Implemented XP-based tie-breaking for ranking scores - users with identical ranking scores are now sorted by XP (higher XP wins), then by account age (older account wins) for consistent and fair rankings
 
 ### Added
 - Added `attemptedTests` array to User model (student role) to track attempted test IDs and attempt counts

@@ -362,7 +362,13 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         rankingScore: getRankingScoreAggregation()
       }
     },
-    { $sort: { rankingScore: -1 } },
+    { 
+      $sort: { 
+        rankingScore: -1,     // Primary: Sort by ranking score (descending)
+        'rewards.xp': -1,     // Tie-breaker: Higher XP wins
+        createdAt: 1          // Final tie-breaker: Older account wins
+      } 
+    },
     { $limit: limit },
     {
       $project: {
@@ -432,7 +438,13 @@ userSchema.statics.getUserRanking = async function (userId, category = 'global')
         rankingScore: getRankingScoreAggregation()
       }
     },
-    { $sort: { rankingScore: -1 } },
+    { 
+      $sort: { 
+        rankingScore: -1,     // Primary: Sort by ranking score (descending)
+        'rewards.xp': -1,     // Tie-breaker: Higher XP wins
+        createdAt: 1          // Final tie-breaker: Older account wins
+      } 
+    },
     {
       $group: {
         _id: null,
