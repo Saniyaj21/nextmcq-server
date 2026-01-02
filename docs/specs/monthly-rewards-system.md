@@ -57,7 +57,7 @@ Tracks monthly reward distribution for transparency and auditing.
   category: String ('global' | 'students' | 'teachers'),
   userId: ObjectId,
   rank: Number,
-  tier: String ('CHAMPION' | 'ELITE' | 'ACHIEVER' | 'PERFORMER'),
+  tier: String ('CHAMPION' | 'ELITE' | 'ACHIEVER' | 'PERFORMER' | 'UNPLACED'),
   coinsAwarded: Number,
   badgeAwarded: String,
   snapshotId: ObjectId,
@@ -92,8 +92,8 @@ badges: [{
   category: String,       // "students" | "teachers"
   month: Number,          // 1-12
   year: Number,           // 2024+
-  tier: String,           // "CHAMPION" | "ELITE" | "ACHIEVER" | "PERFORMER"
-  rank: Number,           // 1-100
+  tier: String,           // "CHAMPION" | "ELITE" | "ACHIEVER" | "PERFORMER" | "UNPLACED"
+  rank: Number,           // 1-100+
   earnedAt: Date          // Timestamp
 }]
 ```
@@ -157,10 +157,11 @@ MONTHLY_REWARDS_API_KEY=your-secure-api-key-here
 
 ```javascript
 MONTHLY_RANKING_REWARDS: {
-  CHAMPION: { coins: 1000, badge: 'Monthly Champion' },
-  ELITE: { coins: 500, badge: 'Monthly Elite' },
-  ACHIEVER: { coins: 200, badge: 'Monthly Achiever' },
-  PERFORMER: { coins: 100, badge: 'Monthly Performer' }
+  CHAMPION: { coins: 1000, badge: 'Monthly Champion' },      // Rank #1
+  ELITE: { coins: 500, badge: 'Monthly Elite' },             // Ranks #2-10
+  ACHIEVER: { coins: 200, badge: 'Monthly Achiever' },       // Ranks #11-50
+  PERFORMER: { coins: 100, badge: 'Monthly Performer' },     // Ranks #51-100
+  UNPLACED: { coins: 10, badge: 'Monthly Unplaced' }         // Ranks #101+
 }
 ```
 
@@ -218,7 +219,7 @@ curl -X POST http://localhost:8080/api/ranking/monthly-rewards \
 
 ### Expected Behavior
 1. Creates snapshots for students and teachers
-2. Awards rewards to top 100 users per category
+2. Awards rewards to all active users per category (tiers based on rank)
 3. Returns summary with statistics
 4. Idempotent - won't process same month twice
 

@@ -54,7 +54,7 @@ const monthlyRewardSchema = new mongoose.Schema({
   
   tier: {
     type: String,
-    enum: ['CHAMPION', 'ELITE', 'ACHIEVER', 'PERFORMER'],
+    enum: ['CHAMPION', 'ELITE', 'ACHIEVER', 'PERFORMER', 'UNPLACED'],
     required: true,
     index: true
   },
