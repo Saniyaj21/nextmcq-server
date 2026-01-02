@@ -237,6 +237,7 @@ async function processJobBatch(job) {
         rank: userRanking.rank,
         tier,
         coins: rewards.coins,
+        xp: rewards.xp,
         badge: rewards.badge,
         month: job.month,
         year: job.year,
@@ -247,6 +248,7 @@ async function processJobBatch(job) {
       // Update stats
       job.stats[tier.toLowerCase()] = (job.stats[tier.toLowerCase()] || 0) + 1;
       job.stats.totalCoinsAwarded += rewards.coins;
+      job.stats.totalXpAwarded = (job.stats.totalXpAwarded || 0) + rewards.xp;
       processed++;
 
     } catch (error) {
@@ -309,7 +311,7 @@ function getTierFromRank(rank) {
 /**
  * Award reward to a single user (idempotent)
  */
-async function awardSingleReward({ userId, rank, tier, coins, badge, month, year, category, snapshotId }) {
+async function awardSingleReward({ userId, rank, tier, coins, xp, badge, month, year, category, snapshotId }) {
   // Check if already awarded (idempotent)
   const existing = await MonthlyReward.findOne({
     userId,
@@ -351,8 +353,8 @@ async function awardSingleReward({ userId, rank, tier, coins, badge, month, year
     });
   }
 
-  // Add coins
-  await user.addRewards(coins, 0, 'monthly_ranking_reward');
+  // Add coins and XP
+  await user.addRewards(coins, xp, 'monthly_ranking_reward');
 
   // Create reward record
   await MonthlyReward.create({
@@ -363,6 +365,7 @@ async function awardSingleReward({ userId, rank, tier, coins, badge, month, year
     rank,
     tier,
     coinsAwarded: coins,
+    xpAwarded: xp,
     badgeAwarded: badge,
     snapshotId,
     status: 'awarded',

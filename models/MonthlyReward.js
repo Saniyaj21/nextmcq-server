@@ -65,6 +65,13 @@ const monthlyRewardSchema = new mongoose.Schema({
     min: 0
   },
   
+  xpAwarded: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
+  
   badgeAwarded: {
     type: String,
     required: true

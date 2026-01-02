@@ -99,6 +99,7 @@ async function processRewardsInBackground(previousMonth, previousYear) {
     categories: {},
     totalRewardsAwarded: 0,
     totalCoinsAwarded: 0,
+    totalXpAwarded: 0,
     errors: []
   };
 
@@ -111,6 +112,7 @@ async function processRewardsInBackground(previousMonth, previousYear) {
       results.categories[category] = categoryResult;
       results.totalRewardsAwarded += categoryResult.rewardsAwarded;
       results.totalCoinsAwarded += categoryResult.coinsAwarded;
+      results.totalXpAwarded += (categoryResult.xpAwarded || 0);
       console.log(`[MonthlyRewards] ${category} completed: ${categoryResult.rewardsAwarded} rewards awarded`);
     } catch (error) {
       console.error(`[MonthlyRewards] Error processing category ${category}:`, error);
@@ -173,6 +175,7 @@ async function processCategoryRewards(month, year, category) {
     },
     rewardsAwarded: awardResults.totalAwarded,
     coinsAwarded: awardResults.totalCoins,
+    xpAwarded: awardResults.totalXp,
     errors: awardResults.errors
   };
 }
@@ -229,6 +232,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
   const rewards = RANKING_SYSTEM.MONTHLY_RANKING_REWARDS;
   let totalAwarded = 0;
   let totalCoins = 0;
+  let totalXp = 0;
   const errors = [];
 
   // Award Champion (#1)
@@ -239,6 +243,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
         rank: 1,
         tier: 'CHAMPION',
         coins: rewards.CHAMPION.coins,
+        xp: rewards.CHAMPION.xp,
         badge: rewards.CHAMPION.badge,
         month,
         year,
@@ -247,6 +252,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       });
       totalAwarded++;
       totalCoins += rewards.CHAMPION.coins;
+      totalXp += rewards.CHAMPION.xp;
     } catch (error) {
       errors.push({ rank: 1, error: error.message });
     }
@@ -260,6 +266,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
         rank: i + 2,
         tier: 'ELITE',
         coins: rewards.ELITE.coins,
+        xp: rewards.ELITE.xp,
         badge: rewards.ELITE.badge,
         month,
         year,
@@ -268,6 +275,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       });
       totalAwarded++;
       totalCoins += rewards.ELITE.coins;
+      totalXp += rewards.ELITE.xp;
     } catch (error) {
       errors.push({ rank: i + 2, error: error.message });
     }
@@ -281,6 +289,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
         rank: i + 11,
         tier: 'ACHIEVER',
         coins: rewards.ACHIEVER.coins,
+        xp: rewards.ACHIEVER.xp,
         badge: rewards.ACHIEVER.badge,
         month,
         year,
@@ -289,6 +298,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       });
       totalAwarded++;
       totalCoins += rewards.ACHIEVER.coins;
+      totalXp += rewards.ACHIEVER.xp;
     } catch (error) {
       errors.push({ rank: i + 11, error: error.message });
     }
@@ -302,6 +312,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
         rank: i + 51,
         tier: 'PERFORMER',
         coins: rewards.PERFORMER.coins,
+        xp: rewards.PERFORMER.xp,
         badge: rewards.PERFORMER.badge,
         month,
         year,
@@ -310,6 +321,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       });
       totalAwarded++;
       totalCoins += rewards.PERFORMER.coins;
+      totalXp += rewards.PERFORMER.xp;
     } catch (error) {
       errors.push({ rank: i + 51, error: error.message });
     }
@@ -323,6 +335,7 @@ async function awardRewards(winners, month, year, category, snapshotId) {
         rank: i + 101,
         tier: 'UNPLACED',
         coins: rewards.UNPLACED.coins,
+        xp: rewards.UNPLACED.xp,
         badge: rewards.UNPLACED.badge,
         month,
         year,
@@ -331,18 +344,19 @@ async function awardRewards(winners, month, year, category, snapshotId) {
       });
       totalAwarded++;
       totalCoins += rewards.UNPLACED.coins;
+      totalXp += rewards.UNPLACED.xp;
     } catch (error) {
       errors.push({ rank: i + 101, error: error.message });
     }
   }
 
-  return { totalAwarded, totalCoins, errors };
+  return { totalAwarded, totalCoins, totalXp, errors };
 }
 
 /**
  * Award reward to a single user
  */
-async function awardSingleReward({ user, rank, tier, coins, badge, month, year, category, snapshotId }) {
+async function awardSingleReward({ user, rank, tier, coins, xp, badge, month, year, category, snapshotId }) {
   // Handle both user object from snapshot or direct userId
   const userId = user && typeof user === 'object' ? (user.userId || user._id) : user;
   
@@ -367,9 +381,9 @@ async function awardSingleReward({ user, rank, tier, coins, badge, month, year, 
     earnedAt: new Date()
   });
 
-  // Add coins (no XP for ranking rewards) - use addRewards() for consistency
-  // This will also save the badge and coins together
-  await userDoc.addRewards(coins, 0, 'monthly_ranking_reward');
+  // Add coins and XP - use addRewards() for consistency
+  // This will also save the badge, coins, and XP together
+  await userDoc.addRewards(coins, xp, 'monthly_ranking_reward');
 
   // Create reward record
   await MonthlyReward.create({
@@ -380,6 +394,7 @@ async function awardSingleReward({ user, rank, tier, coins, badge, month, year, 
     rank,
     tier,
     coinsAwarded: coins,
+    xpAwarded: xp,
     badgeAwarded: badge,
     snapshotId,
     status: 'awarded',

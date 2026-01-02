@@ -59,6 +59,7 @@ Tracks monthly reward distribution for transparency and auditing.
   rank: Number,
   tier: String ('CHAMPION' | 'ELITE' | 'ACHIEVER' | 'PERFORMER' | 'UNPLACED'),
   coinsAwarded: Number,
+  xpAwarded: Number,
   badgeAwarded: String,
   snapshotId: ObjectId,
   status: String ('pending' | 'awarded' | 'failed'),
@@ -157,11 +158,11 @@ MONTHLY_REWARDS_API_KEY=your-secure-api-key-here
 
 ```javascript
 MONTHLY_RANKING_REWARDS: {
-  CHAMPION: { coins: 1000, badge: 'Monthly Champion' },      // Rank #1
-  ELITE: { coins: 500, badge: 'Monthly Elite' },             // Ranks #2-10
-  ACHIEVER: { coins: 200, badge: 'Monthly Achiever' },       // Ranks #11-50
-  PERFORMER: { coins: 100, badge: 'Monthly Performer' },     // Ranks #51-100
-  UNPLACED: { coins: 10, badge: 'Monthly Unplaced' }         // Ranks #101+
+  CHAMPION: { coins: 1000, xp: 500, badge: 'Monthly Champion' },      // Rank #1
+  ELITE: { coins: 500, xp: 400, badge: 'Monthly Elite' },             // Ranks #2-10
+  ACHIEVER: { coins: 200, xp: 300, badge: 'Monthly Achiever' },       // Ranks #11-50
+  PERFORMER: { coins: 100, xp: 200, badge: 'Monthly Performer' },     // Ranks #51-100
+  UNPLACED: { coins: 10, xp: 100, badge: 'Monthly Unplaced' }         // Ranks #101+
 }
 ```
 

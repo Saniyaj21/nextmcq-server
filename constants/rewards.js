@@ -102,22 +102,27 @@ export const RANKING_SYSTEM = {
   MONTHLY_RANKING_REWARDS: {
     CHAMPION: { // #1
       coins: 1000,
+      xp: 500,
       badge: 'Monthly Champion'
     },
     ELITE: { // Top 10
       coins: 500,
+      xp: 400,
       badge: 'Monthly Elite'
     },
     ACHIEVER: { // Top 50
       coins: 200,
+      xp: 300,
       badge: 'Monthly Achiever'
     },
     PERFORMER: { // Top 100
       coins: 100,
+      xp: 200,
       badge: 'Monthly Performer'
     },
     UNPLACED: { // After 100
       coins: 10,
+      xp: 100,
       badge: 'Monthly Unplaced'
     }
   },
