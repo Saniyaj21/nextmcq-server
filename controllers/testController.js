@@ -19,6 +19,7 @@ export const getTests = async (req, res) => {
     let tests = await Test.find({ createdBy: userId })
       .populate('createdBy', 'name email')
       .populate('allowedUsers', 'name email')
+      .populate('allowedBatches', 'name description students')
       .populate('questions', 'question options correctAnswer explanation tests createdBy createdAt updatedAt')
       .sort({ createdAt: -1 });
 
@@ -216,7 +217,7 @@ export const getAllTests = async (req, res) => {
 
 export const createTest = async (req, res) => {
   try {
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, coinFee } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee } = req.body;
     const createdBy = req?.userId; // Get user ID from request.
 
     if (!createdBy) {
@@ -261,6 +262,32 @@ export const createTest = async (req, res) => {
       }
     }
 
+    // Validate allowedBatches if provided
+    if (allowedBatches && Array.isArray(allowedBatches) && allowedBatches.length > 0) {
+      const Batch = (await import('../models/Batch.js')).default;
+      const teacher = await User.findById(createdBy);
+      
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only teachers can assign batches to tests'
+        });
+      }
+
+      // Verify all batches belong to this teacher
+      const validBatches = await Batch.find({
+        _id: { $in: allowedBatches },
+        createdBy: createdBy
+      });
+
+      if (validBatches.length !== allowedBatches.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more batches are invalid or do not belong to you'
+        });
+      }
+    }
+
     const test = await Test.create({
       title,
       description,
@@ -270,6 +297,7 @@ export const createTest = async (req, res) => {
       coinFee: coinFee !== undefined ? coinFee : 0,
       isPublic,
       allowedUsers: allowedUsers || [],
+      allowedBatches: allowedBatches || [],
       createdBy
     });
 
@@ -317,7 +345,7 @@ export const createTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, coinFee } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee } = req.body;
     const userId = req?.userId;
 
     if (!userId) {
@@ -368,6 +396,26 @@ export const updateTest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Test not found or access denied' });
     }
 
+    // Validate allowedBatches if provided
+    if (allowedBatches !== undefined) {
+      if (Array.isArray(allowedBatches) && allowedBatches.length > 0) {
+        const Batch = (await import('../models/Batch.js')).default;
+        
+        // Verify all batches belong to this teacher
+        const validBatches = await Batch.find({
+          _id: { $in: allowedBatches },
+          createdBy: userId
+        });
+
+        if (validBatches.length !== allowedBatches.length) {
+          return res.status(400).json({
+            success: false,
+            message: 'One or more batches are invalid or do not belong to you'
+          });
+        }
+      }
+    }
+
     // Build update object with only provided fields
     const updateData = {
       ...(title !== undefined && { title }),
@@ -377,7 +425,8 @@ export const updateTest = async (req, res) => {
       ...(timeLimit !== undefined && { timeLimit }),
       ...(coinFee !== undefined && { coinFee }),
       ...(isPublic !== undefined && { isPublic }),
-      ...(allowedUsers !== undefined && { allowedUsers: allowedUsers || [] })
+      ...(allowedUsers !== undefined && { allowedUsers: allowedUsers || [] }),
+      ...(allowedBatches !== undefined && { allowedBatches: allowedBatches || [] })
     };
 
     // Update test

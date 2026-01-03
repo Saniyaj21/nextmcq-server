@@ -13,6 +13,7 @@ import ratingRoutes from './routes/rating.js';
 import inviteRoutes from './routes/invite.js';
 import postRoutes from './routes/post.js';
 import feedbackRoutes from './routes/feedback.js';
+import batchRoutes from './routes/batch.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
@@ -48,6 +49,7 @@ app.use('/api/rating', ratingRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/batches', batchRoutes);
 // Basic route
 app.get('/', (req, res) => {
     res.json({

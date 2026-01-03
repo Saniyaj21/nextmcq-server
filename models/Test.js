@@ -66,6 +66,11 @@ const testSchema = new mongoose.Schema({
       ref: 'User'
     }],
     // Only relevant when isPublic is false
+    allowedBatches: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Batch'
+    }],
+    // Only relevant when isPublic is false
     pendingRequests: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'

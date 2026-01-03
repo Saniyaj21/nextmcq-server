@@ -7,6 +7,13 @@ Format: [#SL] - Brief description of change (1-3 lines)
 ---
 
 ## [Unreleased]
+### Added
+- **Batch System**: Implemented comprehensive batch management system for teachers - create, edit, delete batches and assign students to batches
+- **Batch-Test Integration**: Added `allowedBatches` field to Test model - teachers can now assign batches to private tests, granting access to all students in those batches
+- **Batch API Endpoints**: Added full CRUD API endpoints for batch management (`/api/batches`) - create, read, update, delete batches, and manage batch students
+- **Batch Access Control**: Updated test access validation to check batch membership - students in assigned batches can access private tests
+- **Batch Cascade Deletion**: Implemented automatic removal of batches from tests when a batch is deleted
+
 ### Fixed
 - **Monthly Rewards Timeout Fix**: Implemented background processing for monthly rewards - immediately responds to cron-job.org (avoiding 30s timeout) while processing rewards asynchronously in the background
 - **Monthly Rewards Null Handling**: Fixed aggregation to handle null/undefined student and teacher fields using `$ifNull` - ensures all users (including inactive ones with score 0) are included in monthly rewards snapshots

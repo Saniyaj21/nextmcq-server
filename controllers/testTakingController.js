@@ -18,7 +18,7 @@ import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.j
  * @returns {boolean} - Access granted
  */
 const validateTestAccess = async (userId, testId) => {
-  const test = await Test.findById(testId);
+  const test = await Test.findById(testId).populate('allowedBatches');
 
   if (!test) {
     throw new Error('Test not found');
@@ -29,15 +29,31 @@ const validateTestAccess = async (userId, testId) => {
     return true;
   }
 
-  // Check if user is in allowed users or is the creator
-  const hasAccess = test.allowedUsers.some(user => user.toString() === userId) ||
-                   test.createdBy.toString() === userId;
-
-  if (!hasAccess) {
-    throw new Error('Access denied to private test');
+  // Check if user is the creator
+  if (test.createdBy.toString() === userId) {
+    return true;
   }
 
-  return true;
+  // Check if user is in allowed users
+  const hasIndividualAccess = test.allowedUsers.some(user => user.toString() === userId);
+  if (hasIndividualAccess) {
+    return true;
+  }
+
+  // Check if user is in any allowed batches
+  if (test.allowedBatches && test.allowedBatches.length > 0) {
+    const Batch = (await import('../models/Batch.js')).default;
+    const userBatches = await Batch.find({
+      students: userId,
+      _id: { $in: test.allowedBatches.map(b => b._id || b) }
+    });
+
+    if (userBatches.length > 0) {
+      return true;
+    }
+  }
+
+  throw new Error('Access denied to private test');
 };
 
 /**

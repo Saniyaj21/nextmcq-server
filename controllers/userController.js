@@ -452,3 +452,95 @@ export const getTeacherStats = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get list of students who have taken teacher's tests
+ * GET /api/user/teacher-students
+ */
+export const getTeacherStudents = async (req, res) => {
+  try {
+    const teacherId = req.user._id;
+
+    // Verify user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only teachers can access student list'
+      });
+    }
+
+    // Get all tests created by this teacher
+    const tests = await Test.find({ createdBy: teacherId })
+      .select('_id')
+      .lean();
+
+    const testIds = tests.map(t => t._id);
+
+    if (testIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: []
+      });
+    }
+
+    // Get unique students who have taken tests
+    const uniqueStudents = await TestAttempt.aggregate([
+      {
+        $match: {
+          testId: { $in: testIds },
+          status: 'completed',
+          userId: { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalAttempts: { $sum: 1 },
+          bestScore: { $max: '$score.percentage' },
+          lastAttemptDate: { $max: '$completedAt' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$userInfo',
+          preserveNullAndEmptyArrays: false
+        }
+      },
+      {
+        $project: {
+          _id: '$userInfo._id',
+          name: '$userInfo.name',
+          email: '$userInfo.email',
+          profileImage: '$userInfo.profileImage',
+          totalAttempts: 1,
+          bestScore: 1,
+          lastAttemptDate: 1
+        }
+      },
+      {
+        $sort: { lastAttemptDate: -1 }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: uniqueStudents
+    });
+
+  } catch (error) {
+    console.error('Get Teacher Students Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch student list',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
