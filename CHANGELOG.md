@@ -8,6 +8,13 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+- **Test Promotion Feature**: Added test promotion system with one-time cost and duration - promoted tests appear at the top of listings with visual highlighting
+- **Promotion API**: Added `/api/test/:testId/promote` endpoint for teachers to promote their tests with configurable cost and duration
+- **Smart Promotion Sorting**: Promoted tests are automatically sorted to the top with intelligent ordering:
+  - Among promoted tests, sorted by promotion cost (higher cost = higher priority)
+  - Then by promotion expiry date (longer promotions get slight priority)
+  - Finally by user's selected sort option as tie-breaker
+- **Promotion Tracking**: Added `promotedAt` field to track when promotion was set for analytics and future sorting options
 - **Batch System**: Implemented comprehensive batch management system for teachers - create, edit, delete batches and assign students to batches
 - **Batch-Test Integration**: Added `allowedBatches` field to Test model - teachers can now assign batches to private tests, granting access to all students in those batches
 - **Batch API Endpoints**: Added full CRUD API endpoints for batch management (`/api/batches`) - create, read, update, delete batches, and manage batch students

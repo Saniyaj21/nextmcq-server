@@ -113,8 +113,31 @@ const testSchema = new mongoose.Schema({
     createdAt: {
       type: Date,
       default: Date.now
+    },
+    // Promotion fields
+    promotedUntil: {
+      type: Date,
+      default: null
+    },
+    promotionCost: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    promotedAt: {
+      type: Date,
+      default: null
     }
-  }, { timestamps: true });
+  }, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  });
+
+// Virtual field to check if test is currently promoted
+testSchema.virtual('isPromoted').get(function() {
+  return this.promotedUntil && new Date() < this.promotedUntil;
+});
 
 const Test = mongoose.model('Test', testSchema);
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTests, getAllTests, createTest, updateTest, deleteTest, removeQuestionFromTest } from '../controllers/testController.js';
+import { getTests, getAllTests, createTest, updateTest, deleteTest, removeQuestionFromTest, promoteTest } from '../controllers/testController.js';
 import { authenticateUser, authorizeRoles } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -11,5 +11,6 @@ router.post('/create-test', authenticateUser, authorizeRoles('teacher'), createT
 router.put('/update-test/:testId', authenticateUser, authorizeRoles('teacher'), updateTest); // PUT /api/test/update-test/:testId - Update test
 router.delete('/delete-test/:testId', authenticateUser, authorizeRoles('teacher'), deleteTest); // DELETE /api/test/delete-test/:testId - Delete test
 router.delete('/:testId/question/:questionId', authenticateUser, authorizeRoles('teacher'), removeQuestionFromTest); // DELETE /api/test/:testId/question/:questionId - Remove question from test
+router.post('/:testId/promote', authenticateUser, authorizeRoles('teacher'), promoteTest); // POST /api/test/:testId/promote - Promote a test
 
 export default router;

@@ -168,8 +168,41 @@ export const getAllTests = async (req, res) => {
       }
     }
 
-    // Sorting
+    // Add isPromoted field and promotion priority before sorting
+    pipeline.push({
+      $addFields: {
+        isPromoted: {
+          $and: [
+            { $ne: ['$promotedUntil', null] },
+            { $gt: ['$promotedUntil', new Date()] }
+          ]
+        },
+        // Promotion priority: higher cost = higher priority
+        // Use 0 for non-promoted tests so they sort after promoted ones
+        promotionPriority: {
+          $cond: [
+            {
+              $and: [
+                { $ne: ['$promotedUntil', null] },
+                { $gt: ['$promotedUntil', new Date()] }
+              ]
+            },
+            { $ifNull: ['$promotionCost', 0] },
+            0
+          ]
+        }
+      }
+    });
+
+    // Sorting - promoted tests always come first, with smart ordering
     const sortStage = {};
+    // First sort by promotion status (promoted tests first)
+    sortStage.isPromoted = -1;
+    // Then by promotion cost (higher cost = higher priority among promoted tests)
+    sortStage.promotionPriority = -1;
+    // Then by promotion expiry (longer promotions get slight priority)
+    sortStage.promotedUntil = -1;
+    // Finally by selected sort option (as tie-breaker)
     if (sortBy === 'recent') sortStage.createdAt = -1;
     else if (sortBy === 'oldest') sortStage.createdAt = 1;
     else if (sortBy === 'popular') sortStage.attemptsCount = -1;
@@ -188,7 +221,7 @@ export const getAllTests = async (req, res) => {
           { $project: {
             title: 1, description: 1, subject:1, chapter:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
             createdBy: { _id: '$creator._id', name: '$creator.name', email: '$creator.email', profileImage: '$creator.profileImage' },
-            averageRating: 1, totalRatings: 1
+            averageRating: 1, totalRatings: 1, isPromoted: 1, promotedUntil: 1, promotionCost: 1, promotedAt: 1
           } }
         ]
       }
@@ -524,5 +557,94 @@ export const removeQuestionFromTest = async (req, res) => {
   } catch (error) {
     console.error('❌ Remove question from test error:', error);
     res.status(500).json({ success: false, message: 'Failed to remove question from test' });
+  }
+};
+
+/**
+ * Promote a test
+ * POST /api/test/:testId/promote
+ * Body: { cost: number, durationHours: number }
+ */
+export const promoteTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const { cost, durationHours } = req.body;
+    const userId = req?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate input
+    if (!cost || cost <= 0 || !Number.isInteger(cost)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cost must be a positive integer' 
+      });
+    }
+
+    if (!durationHours || durationHours <= 0 || !Number.isInteger(durationHours)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Duration must be a positive integer (in hours)' 
+      });
+    }
+
+    // Find test and verify ownership
+    const test = await Test.findOne({ _id: testId, createdBy: userId });
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found or access denied' });
+    }
+
+    // Get user and check coin balance
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.rewards.coins < cost) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient coins. Required: ${cost}, Available: ${user.rewards.coins}`
+      });
+    }
+
+    // Calculate promotion end date
+    const promotedUntil = new Date();
+    promotedUntil.setHours(promotedUntil.getHours() + durationHours);
+
+    // Deduct coins
+    try {
+      await user.deductCoins(cost, `test_promotion_${testId}`);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to deduct coins'
+      });
+    }
+
+    // Update test with promotion
+    test.promotedUntil = promotedUntil;
+    test.promotionCost = cost;
+    test.promotedAt = new Date(); // Track when promotion was set
+    await test.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Test promoted successfully',
+      data: {
+        test: {
+          _id: test._id,
+          title: test.title,
+          promotedUntil: test.promotedUntil,
+          promotionCost: test.promotionCost,
+          isPromoted: new Date() < test.promotedUntil
+        },
+        remainingCoins: user.rewards.coins
+      }
+    });
+  } catch (error) {
+    console.error('Promote test error:', error);
+    res.status(500).json({ success: false, message: 'Failed to promote test' });
   }
 };
