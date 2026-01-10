@@ -4,6 +4,12 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { sendEmail } from '../utils/sendMail.js';
 import { REWARDS } from '../constants/rewards.js';
+import { 
+  isReviewerEmail, 
+  getReviewerOTP, 
+  isReviewerBypassEnabled,
+  getReviewerTestEmail
+} from '../utils/reviewerAccess.js';
 
 /**
  * Send OTP to email address
@@ -28,8 +34,14 @@ export const sendOTP = async (req, res) => {
       });
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailLower = email.toLowerCase();
+    
+    // Check if this is a reviewer email and bypass is enabled
+    const isReviewer = isReviewerBypassEnabled() && isReviewerEmail(emailLower);
+    const reviewerOTP = getReviewerOTP();
+    
+    // Generate OTP (use fixed OTP for reviewers, random for regular users)
+    const otp = isReviewer ? reviewerOTP : Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     // Check if user exists, if not create a new user with OTP
@@ -50,7 +62,24 @@ export const sendOTP = async (req, res) => {
       });
     }
 
-    // Send OTP via email
+    // Send OTP via email (skip for reviewer emails)
+    if (isReviewer) {
+      // For reviewers, return OTP in response instead of sending email
+      console.log(`[REVIEWER ACCESS] OTP for ${emailLower}: ${otp}`);
+      res.status(200).json({
+        success: true,
+        message: 'OTP generated successfully for reviewer access',
+        data: {
+          email: user.email,
+          otp: otp, // Include OTP in response for reviewers
+          otpExpiry: otpExpiry,
+          isReviewer: true
+        }
+      });
+      return;
+    }
+
+    // Send OTP via email for regular users
     try {
       await sendEmail({
         email: email,
@@ -101,11 +130,49 @@ export const verifyOTP = async (req, res) => {
       });
     }
 
+    // Check if this is the reviewer OTP
+    const reviewerOTP = getReviewerOTP();
+    const isReviewerOTP = isReviewerBypassEnabled() && otp === reviewerOTP;
+    
     // Get user by the OTP from API
-    const user = await User.findOne({ 
-      otp: otp,
-      otpExpiry: { $gt: new Date() }
-    });
+    let user;
+    
+    if (isReviewerOTP) {
+      // For reviewer OTP, find user with this OTP or use test email
+      user = await User.findOne({ 
+        otp: otp,
+        otpExpiry: { $gt: new Date() }
+      });
+      
+      // If no user found with reviewer OTP, find or create test reviewer account
+      if (!user) {
+        const testEmail = getReviewerTestEmail();
+        user = await User.findOne({ email: testEmail });
+        
+        // Create test reviewer account if it doesn't exist
+        if (!user) {
+          user = await User.create({
+            email: testEmail,
+            name: 'Play Store Reviewer',
+            role: 'student',
+            isEmailVerified: true,
+            isProfileComplete: true
+          });
+        }
+        
+        // Set OTP on user for verification
+        await User.findByIdAndUpdate(user._id, {
+          otp: reviewerOTP,
+          otpExpiry: new Date(Date.now() + 10 * 60 * 1000)
+        });
+      }
+    } else {
+      // Regular OTP verification
+      user = await User.findOne({ 
+        otp: otp,
+        otpExpiry: { $gt: new Date() }
+      });
+    }
 
     if (!user) {
       return res.status(400).json({
