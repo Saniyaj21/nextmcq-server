@@ -59,7 +59,7 @@ app.use('/api/batches', batchRoutes);
 
 // Account deletion page route (for Google Play Store compliance)
 app.get('/account-deletion', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'account-deletion', 'index.html'));
+    res.sendFile(path.join(__dirname, 'account-deletion', 'index.html'));
 });
 
 // Basic route
