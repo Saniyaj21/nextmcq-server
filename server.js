@@ -17,11 +17,17 @@ import batchRoutes from './routes/batch.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Get directory path for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Connect to database
 connectDB();
@@ -50,6 +56,12 @@ app.use('/api/invites', inviteRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/batches', batchRoutes);
+
+// Account deletion page route (for Google Play Store compliance)
+app.get('/account-deletion', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'account-deletion', 'index.html'));
+});
+
 // Basic route
 app.get('/', (req, res) => {
     res.json({
