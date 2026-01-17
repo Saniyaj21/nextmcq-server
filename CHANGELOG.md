@@ -27,6 +27,7 @@ Format: [#SL] - Brief description of change (1-3 lines)
 - **Monthly Rewards Null Handling**: Fixed aggregation to handle null/undefined student and teacher fields using `$ifNull` - ensures all users (including inactive ones with score 0) are included in monthly rewards snapshots
 
 ### Changed
+- **Test Update API**: Updated `updateTest` endpoint to accept `questions` array parameter - allows updating question order in tests to support drag-and-drop reordering
 - **Level System**: Changed XP multiplier from 10% (1.1) to 20% (1.2) per level - creates steeper, more challenging progression while maintaining reasonable balance
 - **Test Filtering**: Updated `getAllTests` endpoint to exclude tests with less than 10 questions from the list of available tests for users
 - **API Enhancement**: Updated `/api/question/get-questions` endpoint to support pagination with query parameters (page, limit)

@@ -378,7 +378,7 @@ export const createTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, questions } = req.body;
     const userId = req?.userId;
 
     if (!userId) {
@@ -459,7 +459,8 @@ export const updateTest = async (req, res) => {
       ...(coinFee !== undefined && { coinFee }),
       ...(isPublic !== undefined && { isPublic }),
       ...(allowedUsers !== undefined && { allowedUsers: allowedUsers || [] }),
-      ...(allowedBatches !== undefined && { allowedBatches: allowedBatches || [] })
+      ...(allowedBatches !== undefined && { allowedBatches: allowedBatches || [] }),
+      ...(questions !== undefined && { questions: questions || [] })
     };
 
     // Update test
