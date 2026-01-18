@@ -71,18 +71,18 @@ export const createQuestion = async (req, res) => {
     }
 
     // Validate options array
-    if (!Array.isArray(options) || options.length !== 4) {
+    if (!Array.isArray(options) || options.length < 2 || options.length > 5) {
       return res.status(400).json({
         success: false,
-        message: 'Exactly 4 options are required'
+        message: 'Question must have between 2 and 5 options'
       });
     }
 
     // Validate correct answer
-    if (typeof correctAnswer !== 'number' || correctAnswer < 0 || correctAnswer > 3) {
+    if (typeof correctAnswer !== 'number' || !Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
       return res.status(400).json({
         success: false,
-        message: 'Correct answer must be a number between 0 and 3'
+        message: `Correct answer must be a number between 0 and ${options.length - 1}`
       });
     }
 
@@ -183,18 +183,19 @@ export const updateQuestion = async (req, res) => {
     }
 
     // Validate options array if provided
-    if (options && (!Array.isArray(options) || options.length !== 4)) {
+    if (options && (!Array.isArray(options) || options.length < 2 || options.length > 5)) {
       return res.status(400).json({
         success: false,
-        message: 'Exactly 4 options are required'
+        message: 'Question must have between 2 and 5 options'
       });
     }
 
     // Validate correct answer if provided
-    if (correctAnswer !== undefined && (typeof correctAnswer !== 'number' || correctAnswer < 0 || correctAnswer > 3)) {
+    const optionsLength = options ? options.length : existingQuestion.options.length;
+    if (correctAnswer !== undefined && (typeof correctAnswer !== 'number' || !Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= optionsLength)) {
       return res.status(400).json({
         success: false,
-        message: 'Correct answer must be a number between 0 and 3'
+        message: `Correct answer must be a number between 0 and ${optionsLength - 1}`
       });
     }
 

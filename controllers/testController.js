@@ -190,6 +190,20 @@ export const getAllTests = async (req, res) => {
             { $ifNull: ['$promotionCost', 0] },
             0
           ]
+        },
+        // Normalize promotedUntil: set to null for expired/non-promoted tests
+        // This ensures expired promotions don't sort to top when sorting by promotedUntil
+        sortPromotedUntil: {
+          $cond: [
+            {
+              $and: [
+                { $ne: ['$promotedUntil', null] },
+                { $gt: ['$promotedUntil', new Date()] }
+              ]
+            },
+            '$promotedUntil',
+            null
+          ]
         }
       }
     });
@@ -197,11 +211,12 @@ export const getAllTests = async (req, res) => {
     // Sorting - promoted tests always come first, with smart ordering
     const sortStage = {};
     // First sort by promotion status (promoted tests first)
-    sortStage.isPromoted = -1;
-    // Then by promotion cost (higher cost = higher priority among promoted tests)
+    // Use promotionPriority instead - it's 0 for non-promoted, positive for promoted
+    // This ensures expired promotions don't sort to top
     sortStage.promotionPriority = -1;
-    // Then by promotion expiry (longer promotions get slight priority)
-    sortStage.promotedUntil = -1;
+    // Then by promotion expiry (longer promotions get slight priority) - only for promoted tests
+    // Use sortPromotedUntil which is null for expired/non-promoted tests
+    sortStage.sortPromotedUntil = -1;
     // Finally by selected sort option (as tie-breaker)
     if (sortBy === 'recent') sortStage.createdAt = -1;
     else if (sortBy === 'oldest') sortStage.createdAt = 1;

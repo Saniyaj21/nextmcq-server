@@ -14,13 +14,12 @@ const questionSchema = new mongoose.Schema({
     correctAnswer: {
       type: Number,
       required: [true, 'Please provide the correct answer index'],
-      min: [0, 'Correct answer index must be between 0 and 3'],
-      max: [3, 'Correct answer index must be between 0 and 3'],
+      min: [0, 'Correct answer index must be at least 0'],
       validate: {
         validator: function(value) {
-          return Number.isInteger(value);
+          return Number.isInteger(value) && value >= 0 && value < (this.options?.length || 5);
         },
-        message: 'Correct answer must be an integer'
+        message: 'Correct answer must be a valid integer index within options range'
       }
     },
     explanation: {
@@ -48,8 +47,10 @@ const questionSchema = new mongoose.Schema({
 
 // Pre-save middleware to validate options array length
 questionSchema.pre('save', function(next) {
-  if (this.options.length !== 4) {
-    next(new Error('Question must have exactly 4 options'));
+  if (!Array.isArray(this.options) || this.options.length < 2 || this.options.length > 5) {
+    next(new Error('Question must have between 2 and 5 options'));
+  } else if (this.correctAnswer < 0 || this.correctAnswer >= this.options.length) {
+    next(new Error('Correct answer index must be within the range of options'));
   } else {
     next();
   }
