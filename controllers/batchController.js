@@ -405,20 +405,39 @@ export const addStudentsToBatch = async (req, res) => {
 export const removeStudentFromBatch = async (req, res) => {
   try {
     const { batchId, studentId } = req.params;
-    const teacherId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    // Verify user is a teacher
-    if (req.user.role !== 'teacher') {
+    // Allow both teachers and students to remove students
+    // Teachers can remove any student from their batches
+    // Students can only remove themselves
+    let batch;
+    
+    if (userRole === 'teacher') {
+      // Teacher can remove any student from their own batches
+      batch = await Batch.findOne({
+        _id: batchId,
+        createdBy: userId
+      });
+    } else if (userRole === 'student') {
+      // Student can only remove themselves
+      if (studentId !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only remove yourself from batches'
+        });
+      }
+      // Find batch where student is a member
+      batch = await Batch.findOne({
+        _id: batchId,
+        students: userId
+      });
+    } else {
       return res.status(403).json({
         success: false,
-        message: 'Only teachers can manage batch students'
+        message: 'Only teachers and students can manage batch membership'
       });
     }
-
-    const batch = await Batch.findOne({
-      _id: batchId,
-      createdBy: teacherId
-    });
 
     if (!batch) {
       return res.status(404).json({
@@ -444,11 +463,12 @@ export const removeStudentFromBatch = async (req, res) => {
     await batch.save();
 
     // Populate for response
+    await batch.populate('createdBy', 'name email profileImage');
     await batch.populate('students', 'name email profileImage');
 
     res.status(200).json({
       success: true,
-      message: 'Student removed from batch successfully',
+      message: userRole === 'student' ? 'You have left the batch successfully' : 'Student removed from batch successfully',
       data: batch
     });
 
@@ -457,6 +477,61 @@ export const removeStudentFromBatch = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to remove student from batch',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Get all batches that a student belongs to
+ * GET /api/batches/student/my-batches
+ */
+export const getStudentBatches = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+
+    // Verify user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can access their batches'
+      });
+    }
+
+    // Find all batches where this student is a member
+    const batches = await Batch.find({ students: studentId })
+      .select('name createdBy students createdAt updatedAt')
+      .populate('createdBy', 'name email profileImage')
+      .populate('students', 'name email profileImage')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format response
+    const formattedBatches = batches.map(batch => ({
+      _id: batch._id,
+      name: batch.name,
+      createdBy: {
+        _id: batch.createdBy._id,
+        name: batch.createdBy.name,
+        email: batch.createdBy.email,
+        profileImage: batch.createdBy.profileImage
+      },
+      students: batch.students || [],
+      studentCount: batch.students?.length || 0,
+      createdAt: batch.createdAt,
+      updatedAt: batch.updatedAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedBatches
+    });
+
+  } catch (error) {
+    console.error('Get Student Batches Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch student batches',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

@@ -1,7 +1,7 @@
 // File: server/models/Post.js
 import mongoose from 'mongoose';
 
-const POST_TYPES = ['teacher_test_created', 'student_test_attempt', 'user_joined'];
+const POST_TYPES = ['teacher_test_created', 'student_test_attempt', 'user_joined', 'user_post'];
 
 const postSchema = new mongoose.Schema(
   {

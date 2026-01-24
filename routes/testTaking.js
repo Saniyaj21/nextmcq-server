@@ -9,7 +9,8 @@ import {
   getTestResults,
   getUserAttempts,
   getTestDetails,
-  getPurchasedTests
+  getPurchasedTests,
+  getAllStudentAttempts
 } from '../controllers/testTakingController.js';
 import { requestAccess } from '../controllers/inviteController.js';
 import { authenticateUser } from '../middlewares/auth.js';
@@ -24,6 +25,7 @@ router.post('/submit-answer/:attemptId', authenticateUser, submitAnswer);
 router.post('/submit-test/:attemptId', authenticateUser, submitTest);
 router.get('/test-results/:attemptId', authenticateUser, getTestResults);
 router.get('/user-attempts/:testId', authenticateUser, getUserAttempts);
+router.get('/my-attempts', authenticateUser, getAllStudentAttempts);
 router.get('/purchased-tests', authenticateUser, getPurchasedTests);
 
 export default router;

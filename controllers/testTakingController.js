@@ -974,3 +974,75 @@ export const getUserAttempts = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get all attempts for a student across all tests
+ * GET /api/test-taking/my-attempts
+ */
+export const getAllStudentAttempts = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Get query parameters for pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    // Get all attempts for this student
+    const attempts = await TestAttempt.find({
+      userId,
+      status: 'completed'
+    })
+      .select('testId attemptNumber score timeSpent completedAt rewards')
+      .populate('testId', 'title subject chapter description isPublic createdAt createdBy')
+      .sort({ completedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Get total count for pagination
+    const totalAttempts = await TestAttempt.countDocuments({
+      userId,
+      status: 'completed'
+    });
+
+    // Format attempts
+    const formattedAttempts = attempts.map(attempt => ({
+      id: attempt._id,
+      attemptNumber: attempt.attemptNumber,
+      testId: attempt.testId?._id,
+      testTitle: attempt.testId?.title || 'Unknown Test',
+      testSubject: attempt.testId?.subject || 'Unknown',
+      testChapter: attempt.testId?.chapter,
+      score: attempt.score?.percentage || 0,
+      timeSpent: attempt.timeSpent || 0,
+      completedAt: attempt.completedAt,
+      rewards: attempt.rewards || {}
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        attempts: formattedAttempts,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalAttempts / limit),
+          totalAttempts,
+          itemsPerPage: limit
+        }
+      },
+      message: 'Student attempts retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Get all student attempts error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get student attempts'
+    });
+  }
+};

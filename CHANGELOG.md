@@ -8,6 +8,10 @@ Format: [#SL] - Brief description of change (1-3 lines)
 
 ## [Unreleased]
 ### Added
+- **Student Statistics API**: Added `/api/user/student-stats` endpoint for comprehensive student progress tracking
+- **Student Stats Controller**: Implemented `getStudentStats` controller with aggregated data from test attempts including: overview (tests, attempts, scores, time spent), recent activity (last 30 days), activity chart (last 7 days), most attempted test, recent test attempts, subject-wise performance, and student profile data
+- **All Student Attempts API**: Added `/api/test-taking/my-attempts` endpoint for fetching all student attempts across all tests with pagination support (page, limit query parameters)
+- **All Student Attempts Controller**: Implemented `getAllStudentAttempts` controller that returns paginated list of all completed test attempts for a student, including test details, scores, time spent, and rewards
 - **Account Deletion Page**: Added account deletion page route (`/account-deletion`) for Google Play Store compliance - provides clear steps for users to request account deletion, specifies that only the user account will be deleted (associated data like test attempts may be retained), and includes retention periods (30 days for primary systems, 90 days for backups)
 - **Test Promotion Feature**: Added test promotion system with one-time cost and duration - promoted tests appear at the top of listings with visual highlighting
 - **Promotion API**: Added `/api/test/:testId/promote` endpoint for teachers to promote their tests with configurable cost and duration

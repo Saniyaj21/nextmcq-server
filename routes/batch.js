@@ -8,7 +8,8 @@ import {
   updateBatch,
   deleteBatch,
   addStudentsToBatch,
-  removeStudentFromBatch
+  removeStudentFromBatch,
+  getStudentBatches
 } from '../controllers/batchController.js';
 
 const router = express.Router();
@@ -26,6 +27,9 @@ router.delete('/:batchId', deleteBatch); // DELETE /api/batches/:batchId
 // Batch student management
 router.post('/:batchId/students', addStudentsToBatch); // POST /api/batches/:batchId/students
 router.delete('/:batchId/students/:studentId', removeStudentFromBatch); // DELETE /api/batches/:batchId/students/:studentId
+
+// Student batch operations
+router.get('/student/my-batches', getStudentBatches); // GET /api/batches/student/my-batches
 
 export default router;
 

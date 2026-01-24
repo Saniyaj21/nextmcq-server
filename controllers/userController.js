@@ -454,6 +454,204 @@ export const getTeacherStats = async (req, res) => {
 };
 
 /**
+ * Get student statistics
+ * GET /api/user/student-stats
+ */
+export const getStudentStats = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+
+    // Verify user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can access student statistics'
+      });
+    }
+
+    // Get all test attempts by this student
+    const testAttempts = await TestAttempt.find({ 
+      userId: studentId,
+      status: 'completed'
+    })
+      .select('testId score timeSpent completedAt rewards')
+      .populate('testId', 'title subject chapter isPublic createdAt')
+      .sort({ completedAt: -1 })
+      .lean();
+
+    // Calculate statistics
+    const totalAttempts = testAttempts.length;
+    const totalTests = new Set(testAttempts.map(a => a.testId?._id?.toString()).filter(Boolean)).size;
+
+    // Calculate average score
+    const validAttempts = testAttempts.filter(a => a.score && typeof a.score.percentage === 'number');
+    const avgScore = validAttempts.length > 0
+      ? Math.round((validAttempts.reduce((sum, a) => sum + a.score.percentage, 0) / validAttempts.length) * 10) / 10
+      : 0;
+
+    // Best score
+    const bestScore = validAttempts.length > 0
+      ? Math.max(...validAttempts.map(a => a.score.percentage))
+      : 0;
+
+    // Total time spent (in seconds)
+    const totalTimeSpent = testAttempts.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+
+    // Get unique subjects
+    const subjects = [...new Set(testAttempts
+      .map(a => a.testId?.subject)
+      .filter(Boolean))];
+
+    // Recent activity (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentAttempts = testAttempts.filter(a => {
+      const attemptDate = new Date(a.completedAt);
+      return attemptDate >= thirtyDaysAgo;
+    }).length;
+
+    // Recent tests taken (last 30 days)
+    const recentTests = testAttempts
+      .filter(a => {
+        const attemptDate = new Date(a.completedAt);
+        return attemptDate >= thirtyDaysAgo;
+      })
+      .map(a => a.testId?._id?.toString())
+      .filter(Boolean);
+    const uniqueRecentTests = new Set(recentTests).size;
+
+    // Activity by day (last 7 days)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const attemptsOnDay = testAttempts.filter(a => {
+        const attemptDate = new Date(a.completedAt);
+        return attemptDate >= date && attemptDate < nextDate;
+      }).length;
+
+      last7Days.push({
+        date: date.toISOString().split('T')[0],
+        attempts: attemptsOnDay
+      });
+    }
+
+    // Most attempted test
+    const testAttemptCounts = {};
+    testAttempts.forEach(a => {
+      if (a.testId?._id) {
+        const testId = a.testId._id.toString();
+        testAttemptCounts[testId] = (testAttemptCounts[testId] || 0) + 1;
+      }
+    });
+
+    const mostAttemptedTestId = Object.keys(testAttemptCounts).reduce((a, b) => 
+      testAttemptCounts[a] > testAttemptCounts[b] ? a : b, null
+    );
+
+    const mostAttemptedTest = mostAttemptedTestId 
+      ? testAttempts.find(a => a.testId?._id?.toString() === mostAttemptedTestId)?.testId
+      : null;
+
+    // Recent test attempts (last 10)
+    const recentTestAttempts = testAttempts.slice(0, 10).map(attempt => ({
+      testId: attempt.testId?._id?.toString() || null,
+      testTitle: attempt.testId?.title || 'Unknown Test',
+      testSubject: attempt.testId?.subject || 'Unknown',
+      score: attempt.score?.percentage || 0,
+      timeSpent: attempt.timeSpent || 0,
+      completedAt: attempt.completedAt,
+      rewards: attempt.rewards || {}
+    }));
+
+    // Subject-wise performance
+    const subjectPerformance = {};
+    testAttempts.forEach(attempt => {
+      const subject = attempt.testId?.subject;
+      if (subject) {
+        if (!subjectPerformance[subject]) {
+          subjectPerformance[subject] = {
+            attempts: 0,
+            totalScore: 0,
+            bestScore: 0
+          };
+        }
+        subjectPerformance[subject].attempts++;
+        const score = attempt.score?.percentage || 0;
+        subjectPerformance[subject].totalScore += score;
+        if (score > subjectPerformance[subject].bestScore) {
+          subjectPerformance[subject].bestScore = score;
+        }
+      }
+    });
+
+    const subjectStats = Object.entries(subjectPerformance).map(([subject, stats]) => ({
+      subject,
+      attempts: stats.attempts,
+      averageScore: Math.round((stats.totalScore / stats.attempts) * 10) / 10,
+      bestScore: stats.bestScore
+    })).sort((a, b) => b.attempts - a.attempts);
+
+    // Return comprehensive stats
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalTests,
+          totalAttempts,
+          averageScore: avgScore,
+          bestScore: bestScore,
+          totalTimeSpent, // in seconds
+          subjects: subjects.length
+        },
+        recentActivity: {
+          last30Days: {
+            attempts: recentAttempts,
+            testsTaken: uniqueRecentTests
+          },
+          last7DaysChart: last7Days
+        },
+        mostAttemptedTest: mostAttemptedTest ? {
+          _id: mostAttemptedTest._id,
+          title: mostAttemptedTest.title,
+          subject: mostAttemptedTest.subject,
+          attempts: testAttemptCounts[mostAttemptedTest._id.toString()] || 0
+        } : null,
+        recentTestAttempts,
+        subjectPerformance: subjectStats,
+        student: {
+          name: req.user.name,
+          email: req.user.email,
+          rewards: {
+            coins: req.user.rewards?.coins || 0,
+            xp: req.user.rewards?.xp || 0,
+            level: req.user.rewards?.level || 1
+          },
+          totalTests: req.user.student?.totalTests || 0,
+          correctAnswers: req.user.student?.correctAnswers || 0,
+          totalQuestions: req.user.student?.totalQuestions || 0,
+          averageAccuracy: req.user.calculateAccuracy() || 0
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get Student Stats Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch student statistics',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
  * Get list of students who have taken teacher's tests
  * GET /api/user/teacher-students
  */
