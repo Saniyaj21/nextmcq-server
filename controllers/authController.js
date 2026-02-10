@@ -83,8 +83,59 @@ export const sendOTP = async (req, res) => {
     try {
       await sendEmail({
         email: email,
-        subject: 'Your OTP for NextMCQ Login',
-        message: `Your OTP for NextMCQ login is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.\n\nNextMCQ Team`
+        subject: 'Your NextMCQ Login Code',
+        message: `Your OTP for NextMCQ login is: ${otp}. This code will expire in 10 minutes. If you didn't request this, please ignore this email.`,
+        html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#4F46E5;padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">NextMCQ</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              <p style="margin:0 0 16px;color:#374151;font-size:16px;line-height:1.5;">Hi there,</p>
+              <p style="margin:0 0 24px;color:#374151;font-size:16px;line-height:1.5;">Use the code below to sign in to your NextMCQ account.</p>
+              <!-- OTP Code -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:24px 0;">
+                    <div style="display:inline-block;background-color:#F3F4F6;border:2px dashed #D1D5DB;border-radius:10px;padding:20px 40px;">
+                      <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#1F2937;font-family:'Courier New',monospace;">${otp}</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;color:#6B7280;font-size:14px;line-height:1.5;text-align:center;">This code expires in <strong style="color:#374151;">10 minutes</strong>.</p>
+              <!-- Divider -->
+              <hr style="margin:32px 0;border:none;border-top:1px solid #E5E7EB;">
+              <p style="margin:0;color:#9CA3AF;font-size:13px;line-height:1.5;">If you didn't request this code, you can safely ignore this email. Someone may have entered your email by mistake.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#F9FAFB;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+              <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.5;">NextMCQ &mdash; Practice smarter, score higher.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
       });
     } catch (error) {
       console.error('Email sending error:', error);
@@ -119,8 +170,8 @@ export const sendOTP = async (req, res) => {
  */
 export const verifyOTP = async (req, res) => {
   try {
-    // Get OTP from API
-    const { otp } = req.body;
+    // Get OTP and email from API
+    const { otp, email } = req.body;
 
     // Validate OTP
     if (!otp) {
@@ -133,22 +184,25 @@ export const verifyOTP = async (req, res) => {
     // Check if this is the reviewer OTP
     const reviewerOTP = getReviewerOTP();
     const isReviewerOTP = isReviewerBypassEnabled() && otp === reviewerOTP;
-    
+
+    // Build query - use email if provided for exact match
+    const otpQuery = { otp: otp, otpExpiry: { $gt: new Date() } };
+    if (email) {
+      otpQuery.email = email.toLowerCase();
+    }
+
     // Get user by the OTP from API
     let user;
-    
+
     if (isReviewerOTP) {
       // For reviewer OTP, find user with this OTP or use test email
-      user = await User.findOne({ 
-        otp: otp,
-        otpExpiry: { $gt: new Date() }
-      });
-      
+      user = await User.findOne(otpQuery);
+
       // If no user found with reviewer OTP, find or create test reviewer account
       if (!user) {
         const testEmail = getReviewerTestEmail();
         user = await User.findOne({ email: testEmail });
-        
+
         // Create test reviewer account if it doesn't exist
         if (!user) {
           user = await User.create({
@@ -159,7 +213,7 @@ export const verifyOTP = async (req, res) => {
             isProfileComplete: true
           });
         }
-        
+
         // Set OTP on user for verification
         await User.findByIdAndUpdate(user._id, {
           otp: reviewerOTP,
@@ -168,10 +222,7 @@ export const verifyOTP = async (req, res) => {
       }
     } else {
       // Regular OTP verification
-      user = await User.findOne({ 
-        otp: otp,
-        otpExpiry: { $gt: new Date() }
-      });
+      user = await User.findOne(otpQuery);
     }
 
     if (!user) {

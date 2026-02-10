@@ -14,8 +14,10 @@ import inviteRoutes from './routes/invite.js';
 import postRoutes from './routes/post.js';
 import feedbackRoutes from './routes/feedback.js';
 import batchRoutes from './routes/batch.js';
+import adminRoutes from './routes/admin.js';
 import dotenv from 'dotenv';
 dotenv.config();
+import cors from 'cors';
 import { v2 as cloudinary } from 'cloudinary';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,6 +40,7 @@ cloudinary.config({
   })
 
 // Middleware
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -56,6 +59,7 @@ app.use('/api/invites', inviteRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/batches', batchRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Account deletion page route (for Google Play Store compliance)
 app.get('/account-deletion', (req, res) => {

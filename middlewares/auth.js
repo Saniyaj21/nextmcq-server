@@ -31,6 +31,9 @@ export const authenticateUser = async (req, res, next) => {
 
     // Find user by ID from token
     const user = await User.findById(decoded.userId);
+    console.log('[AUTH DEBUG] userId from token:', decoded.userId);
+    console.log('[AUTH DEBUG] user found:', user ? user.email : 'NOT FOUND');
+    console.log('[AUTH DEBUG] user role:', user ? user.role : 'N/A');
     if (!user) {
       return res.status(404).json({
         success: false,
