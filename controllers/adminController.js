@@ -136,6 +136,144 @@ export const getDashboardGrowth = async (req, res) => {
 };
 
 // ==========================================
+// USERS ANALYTICS
+// ==========================================
+export const getUsersAnalytics = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [signupGrowth, roleDistribution, statusDistribution] = await Promise.all([
+      User.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      User.aggregate([
+        { $group: { _id: '$role', count: { $sum: 1 } } }
+      ]),
+      User.aggregate([
+        {
+          $group: {
+            _id: { $cond: ['$isActive', 'active', 'inactive'] },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    res.json({ success: true, signupGrowth, roleDistribution, statusDistribution });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// TESTS ANALYTICS
+// ==========================================
+export const getTestsAnalytics = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [testGrowth, subjectDistribution, visibilityDistribution] = await Promise.all([
+      Test.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      Test.aggregate([
+        { $group: { _id: '$subject', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+      Test.aggregate([
+        {
+          $group: {
+            _id: { $cond: ['$isPublic', 'public', 'private'] },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    res.json({ success: true, testGrowth, subjectDistribution, visibilityDistribution });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// QUESTIONS ANALYTICS
+// ==========================================
+export const getQuestionsAnalytics = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [questionGrowth, optionCountDistribution, topCreators] = await Promise.all([
+      Question.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      Question.aggregate([
+        {
+          $group: {
+            _id: { $size: '$options' },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      Question.aggregate([
+        { $group: { _id: '$createdBy', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            count: 1,
+            name: { $ifNull: ['$user.name', 'Unknown'] }
+          }
+        }
+      ])
+    ]);
+
+    res.json({ success: true, questionGrowth, optionCountDistribution, topCreators });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
 // USERS
 // ==========================================
 export const getUsers = async (req, res) => {

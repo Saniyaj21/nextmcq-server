@@ -4,6 +4,9 @@ import {
   verifyAdmin,
   getDashboardStats,
   getDashboardGrowth,
+  getUsersAnalytics,
+  getTestsAnalytics,
+  getQuestionsAnalytics,
   getUsers,
   getUserById,
   updateUser,
@@ -48,6 +51,7 @@ router.get('/dashboard/stats', getDashboardStats);
 router.get('/dashboard/growth', getDashboardGrowth);
 
 // Users
+router.get('/users/analytics', getUsersAnalytics);
 router.get('/users', getUsers);
 router.get('/users/:userId', getUserById);
 router.put('/users/:userId', updateUser);
@@ -55,11 +59,13 @@ router.patch('/users/:userId/status', toggleUserStatus);
 router.patch('/users/:userId/role', changeUserRole);
 
 // Tests
+router.get('/tests/analytics', getTestsAnalytics);
 router.get('/tests', getTests);
 router.get('/tests/:testId', getTestById);
 router.delete('/tests/:testId', deleteTest);
 
 // Questions
+router.get('/questions/analytics', getQuestionsAnalytics);
 router.get('/questions', getQuestions);
 router.delete('/questions/:questionId', deleteQuestion);
 
