@@ -8,6 +8,10 @@ import Banner from '../models/Banner.js';
 import Post from '../models/Post.js';
 import MonthlyReward from '../models/MonthlyReward.js';
 import MonthlyRewardJob from '../models/MonthlyRewardJob.js';
+import Rating from '../models/Rating.js';
+import Batch from '../models/Batch.js';
+import AppConfig from '../models/AppConfig.js';
+import AuditLog from '../models/AuditLog.js';
 import { sendEmail } from '../utils/sendMail.js';
 
 // ==========================================
@@ -886,6 +890,582 @@ export const deletePost = async (req, res) => {
     if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
 
     res.json({ success: true, message: 'Post deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// TEST ATTEMPTS
+// ==========================================
+export const getAttempts = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, userId, testId, status, dateFrom, dateTo } = req.query;
+    const query = {};
+
+    if (userId) query.userId = userId;
+    if (testId) query.testId = testId;
+    if (status) query.status = status;
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    const [attempts, total] = await Promise.all([
+      TestAttempt.find(query)
+        .populate('userId', 'name email')
+        .populate('testId', 'title subject')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      TestAttempt.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      attempts,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAttemptById = async (req, res) => {
+  try {
+    const attempt = await TestAttempt.findById(req.params.attemptId)
+      .populate('userId', 'name email')
+      .populate('testId', 'title subject timeLimit')
+      .populate('answers.questionId', 'question options correctAnswer explanation')
+      .lean();
+
+    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
+
+    res.json({ success: true, attempt });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAttemptsAnalytics = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [stats, scoreDistribution, completionsOverTime] = await Promise.all([
+      TestAttempt.aggregate([
+        { $match: { status: 'completed' } },
+        {
+          $group: {
+            _id: null,
+            totalCompleted: { $sum: 1 },
+            avgScore: { $avg: '$score.percentage' },
+            avgTime: { $avg: '$timeSpent' },
+            passCount: { $sum: { $cond: [{ $gte: ['$score.percentage', 60] }, 1, 0] } }
+          }
+        }
+      ]),
+      TestAttempt.aggregate([
+        { $match: { status: 'completed' } },
+        {
+          $bucket: {
+            groupBy: '$score.percentage',
+            boundaries: [0, 20, 40, 60, 80, 101],
+            default: 'other',
+            output: { count: { $sum: 1 } }
+          }
+        }
+      ]),
+      TestAttempt.aggregate([
+        { $match: { status: 'completed', createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    const s = stats[0] || { totalCompleted: 0, avgScore: 0, avgTime: 0, passCount: 0 };
+
+    res.json({
+      success: true,
+      passRate: s.totalCompleted > 0 ? Math.round((s.passCount / s.totalCompleted) * 100) : 0,
+      avgScore: Math.round(s.avgScore || 0),
+      avgTime: Math.round(s.avgTime || 0),
+      totalCompleted: s.totalCompleted,
+      scoreDistribution,
+      completionsOverTime
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// USER ATTEMPTS & REFERRALS (User Detail Enhancement)
+// ==========================================
+export const getUserAttempts = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const query = { userId: req.params.userId };
+
+    const [attempts, total] = await Promise.all([
+      TestAttempt.find(query)
+        .populate('testId', 'title subject')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      TestAttempt.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      attempts,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUserReferrals = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('referralCode referredBy')
+      .populate('referredBy', 'name email referralCode')
+      .lean();
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const referredUsers = await User.find({ referredBy: req.params.userId })
+      .select('name email role createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      referralCode: user.referralCode,
+      referredBy: user.referredBy,
+      referredUsers
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// BATCHES
+// ==========================================
+export const getBatches = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search } = req.query;
+    const query = {};
+
+    if (search) {
+      query.name = new RegExp(search, 'i');
+    }
+
+    const [batches, total] = await Promise.all([
+      Batch.find(query)
+        .populate('createdBy', 'name email')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      Batch.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      batches,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getBatchById = async (req, res) => {
+  try {
+    const batch = await Batch.findById(req.params.batchId)
+      .populate('createdBy', 'name email')
+      .populate('students', 'name email role')
+      .lean();
+
+    if (!batch) return res.status(404).json({ success: false, message: 'Batch not found' });
+
+    res.json({ success: true, batch });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteBatch = async (req, res) => {
+  try {
+    const batch = await Batch.findByIdAndDelete(req.params.batchId);
+    if (!batch) return res.status(404).json({ success: false, message: 'Batch not found' });
+
+    res.json({ success: true, message: 'Batch deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// LEADERBOARD
+// ==========================================
+export const getLeaderboard = async (req, res) => {
+  try {
+    const { category = 'students', instituteId, page = 1, limit = 200 } = req.query;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build match filter (same logic as User.getLeaderboard)
+    const countMatch = { isActive: true };
+    if (instituteId) countMatch.institute = instituteId;
+    if (category === 'students') countMatch.role = 'student';
+    else if (category === 'teachers') countMatch.role = 'teacher';
+
+    const [leaderboard, total] = await Promise.all([
+      User.getLeaderboard(category, limitNum, instituteId || null, null, skip),
+      User.countDocuments(countMatch)
+    ]);
+
+    res.json({
+      success: true,
+      leaderboard,
+      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// REFERRALS
+// ==========================================
+export const getReferralStats = async (req, res) => {
+  try {
+    const [totalReferred, topReferrers] = await Promise.all([
+      User.countDocuments({ referredBy: { $ne: null } }),
+      User.aggregate([
+        { $match: { referredBy: { $ne: null } } },
+        { $group: { _id: '$referredBy', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            count: 1,
+            name: { $ifNull: ['$user.name', 'Unknown'] },
+            email: { $ifNull: ['$user.email', ''] }
+          }
+        }
+      ])
+    ]);
+
+    const totalReferrers = await User.countDocuments({
+      _id: { $in: topReferrers.map(r => r._id) }
+    });
+
+    res.json({ success: true, totalReferrers: topReferrers.length, totalReferred, topReferrers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getReferrals = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+
+    const [referrals, total] = await Promise.all([
+      User.find({ referredBy: { $ne: null } })
+        .select('name email role createdAt referredBy')
+        .populate('referredBy', 'name email referralCode')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      User.countDocuments({ referredBy: { $ne: null } })
+    ]);
+
+    res.json({
+      success: true,
+      referrals,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// RATINGS
+// ==========================================
+export const getRatings = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, testId, minRating, maxRating } = req.query;
+    const query = {};
+
+    if (testId) query.testId = testId;
+    if (minRating || maxRating) {
+      query.rating = {};
+      if (minRating) query.rating.$gte = Number(minRating);
+      if (maxRating) query.rating.$lte = Number(maxRating);
+    }
+
+    const [ratings, total] = await Promise.all([
+      Rating.find(query)
+        .populate('testId', 'title subject')
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      Rating.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      ratings,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getRatingStats = async (req, res) => {
+  try {
+    const [overall, distribution, lowestRated] = await Promise.all([
+      Rating.aggregate([
+        {
+          $group: {
+            _id: null,
+            averageRating: { $avg: '$rating' },
+            totalRatings: { $sum: 1 }
+          }
+        }
+      ]),
+      Rating.aggregate([
+        { $group: { _id: { $floor: '$rating' }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]),
+      Test.find({ totalRatings: { $gte: 1 } })
+        .select('title subject averageRating totalRatings')
+        .sort({ averageRating: 1 })
+        .limit(10)
+        .lean()
+    ]);
+
+    const o = overall[0] || { averageRating: 0, totalRatings: 0 };
+
+    res.json({
+      success: true,
+      averageRating: Math.round((o.averageRating || 0) * 10) / 10,
+      totalRatings: o.totalRatings,
+      distribution,
+      lowestRated
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// APP SETTINGS
+// ==========================================
+export const getSettings = async (req, res) => {
+  try {
+    const { category } = req.query;
+    const query = {};
+    if (category) query.category = category;
+
+    const settings = await AppConfig.find(query)
+      .populate('updatedBy', 'name email')
+      .sort({ category: 1, key: 1 })
+      .lean();
+
+    res.json({ success: true, settings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSetting = async (req, res) => {
+  try {
+    const { value } = req.body;
+    const setting = await AppConfig.findOneAndUpdate(
+      { key: req.params.key },
+      { value, updatedBy: req.userId },
+      { new: true, upsert: true }
+    ).lean();
+
+    res.json({ success: true, setting });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSettingsBulk = async (req, res) => {
+  try {
+    const { items } = req.body; // [{key, value}]
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: 'Items array is required' });
+    }
+
+    await Promise.all(
+      items.map(({ key, value }) =>
+        AppConfig.findOneAndUpdate(
+          { key },
+          { value, updatedBy: req.userId },
+          { upsert: true }
+        )
+      )
+    );
+
+    res.json({ success: true, message: 'Settings updated' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// EXPORT / REPORTS
+// ==========================================
+export const exportUsers = async (req, res) => {
+  try {
+    const { dateFrom, dateTo, role } = req.query;
+    const query = {};
+    if (role) query.role = role;
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    const users = await User.find(query)
+      .select('name email role isActive rewards.coins rewards.xp rewards.level createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let csv = 'Name,Email,Role,Active,Coins,XP,Level,Joined\n';
+    for (const u of users) {
+      csv += `"${u.name || ''}","${u.email}","${u.role}","${u.isActive}","${u.rewards?.coins || 0}","${u.rewards?.xp || 0}","${u.rewards?.level || 1}","${u.createdAt}"\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=users-export.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const exportAttempts = async (req, res) => {
+  try {
+    const { dateFrom, dateTo, testId } = req.query;
+    const query = { status: 'completed' };
+    if (testId) query.testId = testId;
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    const attempts = await TestAttempt.find(query)
+      .populate('userId', 'name email')
+      .populate('testId', 'title subject')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let csv = 'User,Email,Test,Subject,Score,Percentage,TimeSpent(s),Coins,XP,Date\n';
+    for (const a of attempts) {
+      const userName = typeof a.userId === 'object' ? a.userId.name || '' : '';
+      const userEmail = typeof a.userId === 'object' ? a.userId.email || '' : '';
+      const testTitle = typeof a.testId === 'object' ? a.testId.title || '' : '';
+      const testSubject = typeof a.testId === 'object' ? a.testId.subject || '' : '';
+      csv += `"${userName}","${userEmail}","${testTitle}","${testSubject}","${a.score?.correct || 0}/${a.score?.total || 0}","${a.score?.percentage || 0}","${a.timeSpent || 0}","${a.rewards?.coins || 0}","${a.rewards?.xp || 0}","${a.createdAt}"\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=attempts-export.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const exportTests = async (req, res) => {
+  try {
+    const tests = await Test.find()
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let csv = 'Title,Subject,Creator,Questions,Attempts,AvgRating,Public,Created\n';
+    for (const t of tests) {
+      const creator = typeof t.createdBy === 'object' ? t.createdBy.name || '' : '';
+      csv += `"${t.title}","${t.subject}","${creator}","${t.questions?.length || 0}","${t.attemptsCount || 0}","${t.averageRating || 0}","${t.isPublic}","${t.createdAt}"\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=tests-export.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// AUDIT LOGS
+// ==========================================
+export const getAuditLogs = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, adminId, resource, action, dateFrom, dateTo } = req.query;
+    const query = {};
+
+    if (adminId) query.adminId = adminId;
+    if (resource) query.resource = resource;
+    if (action) query.action = action;
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(query)
+        .populate('adminId', 'name email')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      AuditLog.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      logs,
+      pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

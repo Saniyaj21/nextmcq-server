@@ -309,7 +309,7 @@ userSchema.statics.findByReferralCode = function (code) {
   return this.findOne({ referralCode: code });
 };
 
-userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null, level = null) {
+userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null, level = null, skip = 0) {
   const pipeline = [];
 
   // First stage: Match active users
@@ -369,6 +369,7 @@ userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, 
         createdAt: 1          // Final tie-breaker: Older account wins
       } 
     },
+    { $skip: skip },
     { $limit: limit },
     {
       $project: {

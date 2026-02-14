@@ -10,6 +10,8 @@ import Feedback from './Feedback.js';
 import MonthlyRankingSnapshot from './MonthlyRankingSnapshot.js';
 import MonthlyReward from './MonthlyReward.js';
 import MonthlyRewardJob from './MonthlyRewardJob.js';
+import AppConfig from './AppConfig.js';
+import AuditLog from './AuditLog.js';
 
 export {
   User,
@@ -23,7 +25,9 @@ export {
   Feedback,
   MonthlyRankingSnapshot,
   MonthlyReward,
-  MonthlyRewardJob
+  MonthlyRewardJob,
+  AppConfig,
+  AuditLog
 };
 
 export default {
@@ -38,5 +42,7 @@ export default {
   Feedback,
   MonthlyRankingSnapshot,
   MonthlyReward,
-  MonthlyRewardJob
+  MonthlyRewardJob,
+  AppConfig,
+  AuditLog
 };
