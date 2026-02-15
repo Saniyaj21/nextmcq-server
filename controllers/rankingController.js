@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { RANKING_SYSTEM } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 /**
  * Get global leaderboard
@@ -265,5 +266,26 @@ export const getUserRank = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+};
+
+/**
+ * Get monthly ranking reward tiers (public, no auth required)
+ * GET /api/ranking/reward-tiers
+ */
+export const getRewardTiers = (req, res) => {
+  const tiers = ['champion', 'elite', 'achiever', 'performer', 'unplaced'];
+  const defaults = RANKING_SYSTEM.MONTHLY_RANKING_REWARDS;
+
+  const data = tiers.map(tier => {
+    const key = tier.toUpperCase();
+    return {
+      tier: key,
+      coins: getSetting(`ranking.monthly.${tier}.coins`, defaults[key].coins),
+      xp: getSetting(`ranking.monthly.${tier}.xp`, defaults[key].xp),
+      badge: getSetting(`ranking.monthly.${tier}.badge`, defaults[key].badge),
+    };
+  });
+
+  res.json({ success: true, data });
 };
 

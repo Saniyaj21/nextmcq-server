@@ -6,6 +6,7 @@ import MonthlyRankingSnapshot from '../models/MonthlyRankingSnapshot.js';
 import MonthlyReward from '../models/MonthlyReward.js';
 import MonthlyRewardJob from '../models/MonthlyRewardJob.js';
 import { RANKING_SYSTEM } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 const BATCH_SIZE = 50; // Process 50 users per batch
 const MAX_PROCESSING_TIME = 25000; // 25 seconds max per execution
@@ -230,7 +231,13 @@ async function processJobBatch(job) {
   for (const userRanking of batchUsers) {
     try {
       const tier = getTierFromRank(userRanking.rank);
-      const rewards = RANKING_SYSTEM.MONTHLY_RANKING_REWARDS[tier];
+      const tierLower = tier.toLowerCase();
+      const fallback = RANKING_SYSTEM.MONTHLY_RANKING_REWARDS[tier];
+      const rewards = {
+        coins: getSetting(`ranking.monthly.${tierLower}.coins`, fallback.coins),
+        xp: getSetting(`ranking.monthly.${tierLower}.xp`, fallback.xp),
+        badge: getSetting(`ranking.monthly.${tierLower}.badge`, fallback.badge)
+      };
 
       await awardSingleReward({
         userId: userRanking.userId,

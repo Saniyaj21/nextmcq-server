@@ -9,6 +9,7 @@ import Question from '../models/Question.js';
 import Rating from '../models/Rating.js';
 import Post from '../models/Post.js';
 import { REWARDS, LEVEL_SYSTEM, REVENUE_SHARE } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 import { validateTestTime, formatTimeForLogging } from '../utils/timeValidator.js';
 
 /**
@@ -71,8 +72,12 @@ const calculateTestRewards = (attempt, test, isFirstCompletion = false) => {
   // Calculate question rewards (correct answers only)
   const correctAnswers = attempt.answers.filter(answer => answer.isCorrect);
   const questionRewards = {
-    coins: correctAnswers.length * (isFirstAttempt ? REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.coins : REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.coins),
-    xp: correctAnswers.length * (isFirstAttempt ? REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.xp : REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.xp)
+    coins: correctAnswers.length * (isFirstAttempt
+      ? getSetting('rewards.question_correct.first_attempt.coins', REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.coins)
+      : getSetting('rewards.question_correct.repeat_attempt.coins', REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.coins)),
+    xp: correctAnswers.length * (isFirstAttempt
+      ? getSetting('rewards.question_correct.first_attempt.xp', REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.xp)
+      : getSetting('rewards.question_correct.repeat_attempt.xp', REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.xp))
   };
 
   // Calculate speed bonus (only if accuracy >= 90%)
@@ -82,7 +87,10 @@ const calculateTestRewards = (attempt, test, isFirstCompletion = false) => {
   const timeThresholdSeconds = timeLimitSeconds * 0.5; // 50% of time limit in seconds
   const meetsAccuracyRequirement = accuracy >= 90;
   const speedBonus = (attempt.timeSpent < timeThresholdSeconds && meetsAccuracyRequirement)
-    ? REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME
+    ? {
+        coins: getSetting('rewards.speed_bonus.coins', REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.coins),
+        xp: getSetting('rewards.speed_bonus.xp', REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.xp)
+      }
     : { coins: 0, xp: 0 };
 
   return {
@@ -110,7 +118,10 @@ const distributeTeacherRewards = async (testId, studentAttempt) => {
       return;
     }
 
-    const teacherReward = REWARDS.TEACHER.STUDENT_ATTEMPT;
+    const teacherReward = {
+      coins: getSetting('rewards.teacher.student_attempt.coins', REWARDS.TEACHER.STUDENT_ATTEMPT.coins),
+      xp: getSetting('rewards.teacher.student_attempt.xp', REWARDS.TEACHER.STUDENT_ATTEMPT.xp)
+    };
 
     // Update teacher stats
     teacher.teacher.totalAttemptsOfStudents = (teacher.teacher.totalAttemptsOfStudents || 0) + 1;
@@ -204,7 +215,7 @@ export const startTest = async (req, res) => {
         coinsPaid = coinFee;
 
         // Transfer 80% of coin fee to teacher (20% platform fee)
-        const teacherCoins = Math.floor(coinFee * REVENUE_SHARE.TEACHER_SHARE);
+        const teacherCoins = Math.floor(coinFee * getSetting('revenue_share.teacher_share', REVENUE_SHARE.TEACHER_SHARE));
         
         if (teacherCoins > 0) {
           const teacher = await User.findById(test.createdBy);
@@ -777,11 +788,20 @@ export const getTestDetails = async (req, res) => {
 
       rewards: {
         perQuestion: {
-          firstAttempt: REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT,
-          repeatAttempt: REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT
+          firstAttempt: {
+            coins: getSetting('rewards.question_correct.first_attempt.coins', REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.coins),
+            xp: getSetting('rewards.question_correct.first_attempt.xp', REWARDS.QUESTION_CORRECT.FIRST_ATTEMPT.xp)
+          },
+          repeatAttempt: {
+            coins: getSetting('rewards.question_correct.repeat_attempt.coins', REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.coins),
+            xp: getSetting('rewards.question_correct.repeat_attempt.xp', REWARDS.QUESTION_CORRECT.REPEAT_ATTEMPT.xp)
+          }
         },
         speedBonus: {
-          under50PercentTime: REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME,
+          under50PercentTime: {
+            coins: getSetting('rewards.speed_bonus.coins', REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.coins),
+            xp: getSetting('rewards.speed_bonus.xp', REWARDS.SPEED_BONUS.UNDER_50_PERCENT_TIME.xp)
+          },
           thresholdMinutes: Math.floor(test.timeLimit * 0.5)
         }
       }

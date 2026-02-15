@@ -5,6 +5,7 @@ import Rating from '../models/Rating.js';
 import Post from '../models/Post.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { REWARDS } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 export const getTests = async (req, res) => {
   try {
@@ -40,7 +41,7 @@ export const getTests = async (req, res) => {
           
           const totalPaid = totalCoinsPaid[0]?.total || 0;
           // Calculate teacher earnings (80% of what students paid)
-          const earnings = Math.floor(totalPaid * REVENUE_SHARE.TEACHER_SHARE);
+          const earnings = Math.floor(totalPaid * getSetting('revenue_share.teacher_share', REVENUE_SHARE.TEACHER_SHARE));
           
           testObj.earnings = earnings;
           testObj.totalCoinsPaid = totalPaid;
@@ -350,7 +351,10 @@ export const createTest = async (req, res) => {
     });
 
     // Distribute rewards to teacher for creating test
-    const teacherReward = REWARDS.TEACHER.CREATE_TEST;
+    const teacherReward = {
+      coins: getSetting('rewards.teacher.create_test.coins', REWARDS.TEACHER.CREATE_TEST.coins),
+      xp: getSetting('rewards.teacher.create_test.xp', REWARDS.TEACHER.CREATE_TEST.xp)
+    };
     const teacher = await User.findById(createdBy);
     
     if (teacher) {

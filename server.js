@@ -15,6 +15,7 @@ import postRoutes from './routes/post.js';
 import feedbackRoutes from './routes/feedback.js';
 import batchRoutes from './routes/batch.js';
 import adminRoutes from './routes/admin.js';
+import { loadSettings } from './utils/settingsCache.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import cors from 'cors';
@@ -31,8 +32,8 @@ const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Connect to database
-connectDB();
+// Connect to database, then load settings cache
+connectDB().then(() => loadSettings());
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,

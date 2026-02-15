@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { LEVEL_SYSTEM, RANKING_SYSTEM, getRankingScoreAggregation } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 const userSchema = new mongoose.Schema({
   // ==========================================
@@ -250,7 +251,23 @@ userSchema.methods.generateReferralCode = function () {
 };
 
 userSchema.methods.calculateLevel = function () {
-  return LEVEL_SYSTEM.calculateLevelFromXP(this.rewards.xp);
+  const totalXP = this.rewards.xp;
+  const baseXP = getSetting('level_system.base_xp', LEVEL_SYSTEM.BASE_XP);
+  const multiplier = getSetting('level_system.xp_multiplier', LEVEL_SYSTEM.XP_MULTIPLIER);
+
+  if (totalXP < baseXP) return 1;
+
+  let level = 1;
+  let xpUsed = 0;
+  let currentLevelXP = baseXP;
+
+  while (xpUsed + currentLevelXP <= totalXP) {
+    xpUsed += currentLevelXP;
+    level++;
+    currentLevelXP = Math.floor(currentLevelXP * multiplier);
+  }
+
+  return level;
 };
 
 userSchema.methods.addRewards = function (coins = 0, xp = 0, source = 'unknown') {
@@ -287,12 +304,10 @@ userSchema.methods.calculateAccuracy = function () {
 
 userSchema.methods.calculateRankingScore = function () {
   if (this.role === 'student') {
-    // Student ranking: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
-    // Fast calculation: No division, no rounding - optimized for performance
-    const { TESTS_WEIGHT, CORRECT_ANSWERS_WEIGHT } = RANKING_SYSTEM.SCORE_FORMULA;
-    return (this.student.totalTests * TESTS_WEIGHT) + (this.student.correctAnswers * CORRECT_ANSWERS_WEIGHT);
+    const testsWeight = getSetting('ranking.score.tests_weight', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT);
+    const correctWeight = getSetting('ranking.score.correct_answers_weight', RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT);
+    return (this.student.totalTests * testsWeight) + (this.student.correctAnswers * correctWeight);
   } else if (this.role === 'teacher') {
-    // For teachers: totalAttemptsOfStudents × 1
     return this.teacher.totalAttemptsOfStudents * 1;
   }
   return 0;

@@ -11,6 +11,7 @@ import MonthlyRewardJob from '../models/MonthlyRewardJob.js';
 import Rating from '../models/Rating.js';
 import Batch from '../models/Batch.js';
 import AppConfig from '../models/AppConfig.js';
+import { invalidateCache } from '../utils/settingsCache.js';
 import AuditLog from '../models/AuditLog.js';
 import { sendEmail } from '../utils/sendMail.js';
 
@@ -1318,6 +1319,7 @@ export const updateSetting = async (req, res) => {
       { new: true, upsert: true }
     ).lean();
 
+    await invalidateCache();
     res.json({ success: true, setting });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -1341,6 +1343,7 @@ export const updateSettingsBulk = async (req, res) => {
       )
     );
 
+    await invalidateCache();
     res.json({ success: true, message: 'Settings updated' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

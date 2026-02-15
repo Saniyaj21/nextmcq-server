@@ -2,6 +2,8 @@
 // NextMCQ Rewards System Constants
 // Centralized configuration for all reward amounts and system parameters
 
+import { getSetting } from '../utils/settingsCache.js';
+
 export const REWARDS = {
   // Question-Based Rewards (per correct answer)
   QUESTION_CORRECT: {
@@ -211,24 +213,21 @@ export const calculateSpeedBonus = (timeLimit, actualTime) => {
 
 // MongoDB aggregation pipeline for ranking score calculation
 export const getRankingScoreAggregation = () => {
+  const testsWeight = getSetting('ranking.score.tests_weight', RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT);
+  const correctAnswersWeight = getSetting('ranking.score.correct_answers_weight', RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT);
+
   return {
     $add: [
-      // Handle different roles with conditional logic
       {
         $cond: {
           if: { $eq: ['$role', 'student'] },
           then: {
-            // Student ranking: (totalTests × TESTS_WEIGHT) + (correctAnswers × CORRECT_ANSWERS_WEIGHT)
-            // Fast calculation: No division, no rounding - optimized for performance
-            // Use $ifNull to handle null/undefined values (treat as 0)
             $add: [
-              { $multiply: [{ $ifNull: ['$student.totalTests', 0] }, RANKING_SYSTEM.SCORE_FORMULA.TESTS_WEIGHT] },
-              { $multiply: [{ $ifNull: ['$student.correctAnswers', 0] }, RANKING_SYSTEM.SCORE_FORMULA.CORRECT_ANSWERS_WEIGHT] }
+              { $multiply: [{ $ifNull: ['$student.totalTests', 0] }, testsWeight] },
+              { $multiply: [{ $ifNull: ['$student.correctAnswers', 0] }, correctAnswersWeight] }
             ]
           },
           else: {
-            // For teachers: totalAttemptsOfStudents × 1
-            // Use $ifNull to handle null/undefined values (treat as 0)
             $multiply: [{ $ifNull: ['$teacher.totalAttemptsOfStudents', 0] }, 1]
           }
         }

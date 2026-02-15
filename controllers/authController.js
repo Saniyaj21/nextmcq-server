@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { sendEmail } from '../utils/sendMail.js';
 import { REWARDS } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 import { 
   isReviewerEmail, 
   getReviewerOTP, 
@@ -424,12 +425,19 @@ export const completeOnboarding = async (req, res) => {
     // Update token in user document
     await User.findByIdAndUpdate(userId, { token: newToken });
 
+    // Build referral reward amounts (needed for both awarding and post data)
+    const referrerRewards = {
+      coins: getSetting('rewards.referral.referrer.coins', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER.coins),
+      xp: getSetting('rewards.referral.referrer.xp', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER.xp)
+    };
+    const refereeRewards = {
+      coins: getSetting('rewards.referral.referee.coins', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE.coins),
+      xp: getSetting('rewards.referral.referee.xp', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE.xp)
+    };
+
     // Process referral rewards if referrer exists
     if (referrer) {
       try {
-        const referrerRewards = REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER;
-        const refereeRewards = REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE;
-
         // Award rewards to referrer
         await referrer.addRewards(
           referrerRewards.coins,
@@ -465,8 +473,8 @@ export const completeOnboarding = async (req, res) => {
           hasReferrer: !!referrer,
           referrerId: referrer?._id || null,
           referralRewards: referrer ? {
-            referrer: REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER,
-            referee: REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE
+            referrer: referrerRewards,
+            referee: refereeRewards
           } : null
         }
       });

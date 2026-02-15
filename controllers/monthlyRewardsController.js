@@ -4,6 +4,7 @@ import MonthlyRankingSnapshot from '../models/MonthlyRankingSnapshot.js';
 import MonthlyReward from '../models/MonthlyReward.js';
 import { RANKING_SYSTEM } from '../constants/rewards.js';
 import { getRankingScoreAggregation } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 /**
  * Process Monthly Rewards
@@ -229,7 +230,33 @@ function determineWinners(rankings) {
  * Award rewards to winners
  */
 async function awardRewards(winners, month, year, category, snapshotId) {
-  const rewards = RANKING_SYSTEM.MONTHLY_RANKING_REWARDS;
+  const rewards = {
+    CHAMPION: {
+      coins: getSetting('ranking.monthly.champion.coins', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.CHAMPION.coins),
+      xp: getSetting('ranking.monthly.champion.xp', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.CHAMPION.xp),
+      badge: getSetting('ranking.monthly.champion.badge', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.CHAMPION.badge)
+    },
+    ELITE: {
+      coins: getSetting('ranking.monthly.elite.coins', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ELITE.coins),
+      xp: getSetting('ranking.monthly.elite.xp', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ELITE.xp),
+      badge: getSetting('ranking.monthly.elite.badge', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ELITE.badge)
+    },
+    ACHIEVER: {
+      coins: getSetting('ranking.monthly.achiever.coins', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ACHIEVER.coins),
+      xp: getSetting('ranking.monthly.achiever.xp', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ACHIEVER.xp),
+      badge: getSetting('ranking.monthly.achiever.badge', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.ACHIEVER.badge)
+    },
+    PERFORMER: {
+      coins: getSetting('ranking.monthly.performer.coins', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.PERFORMER.coins),
+      xp: getSetting('ranking.monthly.performer.xp', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.PERFORMER.xp),
+      badge: getSetting('ranking.monthly.performer.badge', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.PERFORMER.badge)
+    },
+    UNPLACED: {
+      coins: getSetting('ranking.monthly.unplaced.coins', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.UNPLACED.coins),
+      xp: getSetting('ranking.monthly.unplaced.xp', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.UNPLACED.xp),
+      badge: getSetting('ranking.monthly.unplaced.badge', RANKING_SYSTEM.MONTHLY_RANKING_REWARDS.UNPLACED.badge)
+    }
+  };
   let totalAwarded = 0;
   let totalCoins = 0;
   let totalXp = 0;
