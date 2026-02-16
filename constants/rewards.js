@@ -36,6 +36,13 @@ export const REWARDS = {
     }
   },
 
+  // Battle Mode Rewards
+  BATTLE: {
+    WINNER: { coins: 20, xp: 30 },
+    LOSER: { coins: 5, xp: 10 },
+    DRAW: { coins: 10, xp: 20 }
+  },
+
   // Teacher-Specific Rewards
   TEACHER: {
     CREATE_TEST: {
