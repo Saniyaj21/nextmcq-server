@@ -22,6 +22,13 @@ const DEFAULT_SETTINGS = [
   { key: 'rewards.referral.referrer.xp', value: 75, description: 'XP awarded to referrer on successful signup', category: 'rewards' },
   { key: 'rewards.referral.referee.coins', value: 75, description: 'Coins awarded to referee on successful signup', category: 'rewards' },
   { key: 'rewards.referral.referee.xp', value: 40, description: 'XP awarded to referee on successful signup', category: 'rewards' },
+  // Rewards — Battle
+  { key: 'rewards.battle.winner.coins', value: 20, description: 'Battle winner coins', category: 'rewards' },
+  { key: 'rewards.battle.winner.xp', value: 30, description: 'Battle winner XP', category: 'rewards' },
+  { key: 'rewards.battle.loser.coins', value: 5, description: 'Battle loser coins', category: 'rewards' },
+  { key: 'rewards.battle.loser.xp', value: 10, description: 'Battle loser XP', category: 'rewards' },
+  { key: 'rewards.battle.draw.coins', value: 10, description: 'Battle draw coins', category: 'rewards' },
+  { key: 'rewards.battle.draw.xp', value: 20, description: 'Battle draw XP', category: 'rewards' },
   // Rewards — Teacher
   { key: 'rewards.teacher.create_test.coins', value: 50, description: 'Coins awarded to teacher for creating a test', category: 'rewards' },
   { key: 'rewards.teacher.create_test.xp', value: 75, description: 'XP awarded to teacher for creating a test', category: 'rewards' },

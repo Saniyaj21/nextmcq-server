@@ -3,6 +3,7 @@ import Question from '../models/Question.js';
 import Test from '../models/Test.js';
 import User from '../models/User.js';
 import { REWARDS } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 // Generate a random 6-character battle code
 const generateBattleCode = () => {
@@ -53,24 +54,29 @@ const checkAndExpireBattle = async (battle) => {
 
 // Distribute rewards to winner/loser
 const distributeBattleRewards = async (battle) => {
-  const battleRewards = REWARDS.BATTLE;
+  const winnerCoins = getSetting('rewards.battle.winner.coins', REWARDS.BATTLE.WINNER.coins);
+  const winnerXp = getSetting('rewards.battle.winner.xp', REWARDS.BATTLE.WINNER.xp);
+  const loserCoins = getSetting('rewards.battle.loser.coins', REWARDS.BATTLE.LOSER.coins);
+  const loserXp = getSetting('rewards.battle.loser.xp', REWARDS.BATTLE.LOSER.xp);
+  const drawCoins = getSetting('rewards.battle.draw.coins', REWARDS.BATTLE.DRAW.coins);
+  const drawXp = getSetting('rewards.battle.draw.xp', REWARDS.BATTLE.DRAW.xp);
 
   if (battle.isDraw) {
     battle.rewards = {
-      winner: { coins: battleRewards.DRAW.coins, xp: battleRewards.DRAW.xp },
-      loser: { coins: battleRewards.DRAW.coins, xp: battleRewards.DRAW.xp }
+      winner: { coins: drawCoins, xp: drawXp },
+      loser: { coins: drawCoins, xp: drawXp }
     };
 
     const [creator, opponent] = await Promise.all([
       User.findById(battle.creator),
       User.findById(battle.opponent)
     ]);
-    if (creator) await creator.addRewards(battleRewards.DRAW.coins, battleRewards.DRAW.xp, 'battle_draw');
-    if (opponent) await opponent.addRewards(battleRewards.DRAW.coins, battleRewards.DRAW.xp, 'battle_draw');
+    if (creator) await creator.addRewards(drawCoins, drawXp, 'battle_draw');
+    if (opponent) await opponent.addRewards(drawCoins, drawXp, 'battle_draw');
   } else if (battle.winner) {
     battle.rewards = {
-      winner: { coins: battleRewards.WINNER.coins, xp: battleRewards.WINNER.xp },
-      loser: { coins: battleRewards.LOSER.coins, xp: battleRewards.LOSER.xp }
+      winner: { coins: winnerCoins, xp: winnerXp },
+      loser: { coins: loserCoins, xp: loserXp }
     };
 
     const winnerId = battle.winner.toString();
@@ -82,8 +88,8 @@ const distributeBattleRewards = async (battle) => {
       User.findById(winnerId),
       User.findById(loserId)
     ]);
-    if (winner) await winner.addRewards(battleRewards.WINNER.coins, battleRewards.WINNER.xp, 'battle_win');
-    if (loser) await loser.addRewards(battleRewards.LOSER.coins, battleRewards.LOSER.xp, 'battle_loss');
+    if (winner) await winner.addRewards(winnerCoins, winnerXp, 'battle_win');
+    if (loser) await loser.addRewards(loserCoins, loserXp, 'battle_loss');
   }
 };
 
@@ -105,27 +111,24 @@ const checkWinConditions = async (battle, playerId) => {
     return true;
   }
 
-  // Check: has this player answered all questions?
+  // Check: has this player answered all questions? → end battle immediately
   if (playerState.currentQuestionIndex >= battle.maxQuestions) {
     playerState.isFinished = true;
     playerState.finishedAt = new Date();
 
-    // If both are finished, end the battle
-    if (otherState.isFinished) {
-      battle.status = 'completed';
-      battle.winReason = 'all_answered';
-      battle.completedAt = new Date();
+    battle.status = 'completed';
+    battle.winReason = 'all_answered';
+    battle.completedAt = new Date();
 
-      if (playerState.score > otherState.score) {
-        battle.winner = isCreator ? battle.creator : battle.opponent;
-      } else if (otherState.score > playerState.score) {
-        battle.winner = isCreator ? battle.opponent : battle.creator;
-      } else {
-        battle.isDraw = true;
-      }
-      await distributeBattleRewards(battle);
-      return true;
+    if (playerState.score > otherState.score) {
+      battle.winner = isCreator ? battle.creator : battle.opponent;
+    } else if (otherState.score > playerState.score) {
+      battle.winner = isCreator ? battle.opponent : battle.creator;
+    } else {
+      battle.isDraw = true;
     }
+    await distributeBattleRewards(battle);
+    return true;
   }
 
   return false;
@@ -167,6 +170,13 @@ export const createBattle = async (req, res) => {
     }
     if (targetScore < 1) {
       return res.status(400).json({ success: false, message: 'Target score must be at least 1' });
+    }
+    const maxPossibleScore = maxQuestions * correctMarks;
+    if (targetScore > maxPossibleScore) {
+      return res.status(400).json({
+        success: false,
+        message: `Target score cannot exceed max possible score (${maxQuestions} questions × ${correctMarks} marks = ${maxPossibleScore})`
+      });
     }
 
     // Find questions for the subject
