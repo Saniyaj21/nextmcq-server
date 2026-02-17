@@ -463,6 +463,108 @@ export const deleteTest = async (req, res) => {
 };
 
 // ==========================================
+// IMPORT TEST (from XLSX data)
+// ==========================================
+export const importTest = async (req, res) => {
+  try {
+    const { teacherId, test: testData, questions: questionsData } = req.body;
+
+    // Validate teacherId
+    if (!teacherId) {
+      return res.status(400).json({ success: false, message: 'teacherId is required' });
+    }
+    const teacher = await User.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    }
+    if (teacher.role !== 'teacher' && teacher.role !== 'admin') {
+      return res.status(400).json({ success: false, message: 'Selected user must be a teacher or admin' });
+    }
+
+    // Validate test fields
+    if (!testData?.title?.trim()) {
+      return res.status(400).json({ success: false, message: 'Test title is required' });
+    }
+    if (!testData?.subject?.trim()) {
+      return res.status(400).json({ success: false, message: 'Test subject is required' });
+    }
+    const timeLimit = Number(testData.timeLimit);
+    if (!Number.isInteger(timeLimit) || timeLimit < 1 || timeLimit > 60) {
+      return res.status(400).json({ success: false, message: 'Time limit must be an integer between 1 and 60' });
+    }
+
+    // Validate questions
+    if (!Array.isArray(questionsData) || questionsData.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least one question is required' });
+    }
+
+    const errors = [];
+    questionsData.forEach((q, i) => {
+      if (!q.question?.trim()) errors.push(`Q${i + 1}: Question text is required`);
+      if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) {
+        errors.push(`Q${i + 1}: Must have 2-5 options`);
+      }
+      if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer >= (q.options?.length || 0)) {
+        errors.push(`Q${i + 1}: Correct answer index out of range`);
+      }
+    });
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: errors.join('\n') });
+    }
+
+    // Create questions in bulk
+    const questionDocs = questionsData.map(q => ({
+      question: q.question.trim(),
+      options: q.options.map(o => o.trim()),
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation?.trim() || undefined,
+      createdBy: teacherId,
+    }));
+
+    const createdQuestions = await Question.insertMany(questionDocs);
+    const questionIds = createdQuestions.map(q => q._id);
+
+    // Create test
+    const test = await Test.create({
+      title: testData.title.trim(),
+      subject: testData.subject.trim(),
+      chapter: testData.chapter?.trim() || undefined,
+      description: testData.description?.trim() || undefined,
+      timeLimit,
+      coinFee: Number(testData.coinFee) || 0,
+      isPublic: testData.isPublic !== false,
+      createdBy: teacherId,
+      questions: questionIds,
+    });
+
+    // Set bidirectional refs on questions
+    await Question.updateMany(
+      { _id: { $in: questionIds } },
+      { $push: { tests: test._id } }
+    );
+
+    // Update teacher stats
+    await User.findByIdAndUpdate(teacherId, {
+      $inc: {
+        'teacher.testsCreated': 1,
+        'teacher.questionsCreated': questionsData.length,
+      },
+    });
+
+    // Return populated test
+    const populated = await Test.findById(test._id)
+      .populate('createdBy', 'name email')
+      .populate('questions')
+      .lean();
+
+    res.status(201).json({ success: true, test: populated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
 // QUESTIONS
 // ==========================================
 export const getQuestions = async (req, res) => {

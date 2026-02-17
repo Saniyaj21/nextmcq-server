@@ -18,6 +18,7 @@ import {
   getTests,
   getTestById,
   deleteTest,
+  importTest,
   getQuestions,
   deleteQuestion,
   getFeedback,
@@ -86,6 +87,7 @@ router.get('/tests/analytics', getTestsAnalytics);
 router.get('/tests', getTests);
 router.get('/tests/:testId', getTestById);
 router.delete('/tests/:testId', auditMiddleware('delete', 'test'), deleteTest);
+router.post('/tests/import', auditMiddleware('import', 'test'), importTest);
 
 // Questions
 router.get('/questions/analytics', getQuestionsAnalytics);
