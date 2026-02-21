@@ -13,6 +13,8 @@ import Batch from '../models/Batch.js';
 import AppConfig from '../models/AppConfig.js';
 import { invalidateCache } from '../utils/settingsCache.js';
 import AuditLog from '../models/AuditLog.js';
+import Subject from '../models/Subject.js';
+import Battle from '../models/Battle.js';
 import { sendEmail } from '../utils/sendMail.js';
 
 // ==========================================
@@ -1571,6 +1573,146 @@ export const getAuditLogs = async (req, res) => {
       logs,
       pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// SUBJECTS
+// ==========================================
+
+const DEFAULT_SUBJECTS = [
+  'Accountancy', 'Anatomy', 'Bengali', 'Biochemistry', 'Biology',
+  'Business Studies', 'Chemistry', 'Computer Application', 'Computer Science',
+  'Economics', 'English', 'Environmental Science', 'Financial Management',
+  'General Knowledge', 'Geography', 'Hindi', 'History', 'Mathematics',
+  'Microbiology', 'Pathology', 'Physical Education', 'Physics',
+  'Physiology', 'Political Science', 'Psychology', 'Sanskrit',
+  'Sociology', 'Statistics'
+];
+
+const seedSubjectsIfEmpty = async () => {
+  const count = await Subject.countDocuments();
+  if (count === 0) {
+    await Subject.insertMany(DEFAULT_SUBJECTS.map(name => ({ name, isActive: true })));
+  }
+};
+
+export const getSubjects = async (req, res) => {
+  try {
+    await seedSubjectsIfEmpty();
+    const subjects = await Subject.find().sort({ name: 1 }).lean();
+    res.json({ success: true, subjects });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createSubject = async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Subject name is required' });
+    }
+
+    const existing = await Subject.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Subject already exists' });
+    }
+
+    const subject = await Subject.create({ name: name.trim() });
+    res.status(201).json({ success: true, subject });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSubject = async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Subject name is required' });
+    }
+
+    const existing = await Subject.findOne({ name: name.trim(), _id: { $ne: req.params.subjectId } });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Subject name already taken' });
+    }
+
+    // Fetch old name BEFORE updating so we can cascade the rename
+    const oldSubject = await Subject.findById(req.params.subjectId).lean();
+    if (!oldSubject) return res.status(404).json({ success: false, message: 'Subject not found' });
+
+    const oldName = oldSubject.name;
+    const newName = name.trim();
+
+    const subject = await Subject.findByIdAndUpdate(
+      req.params.subjectId,
+      { name: newName },
+      { new: true }
+    ).lean();
+
+    // Cascade rename to User.subjects, Test.subject, Battle.subject
+    if (oldName !== newName) {
+      await Promise.all([
+        User.updateMany(
+          { subjects: oldName },
+          { $set: { 'subjects.$': newName } }
+        ),
+        Test.updateMany(
+          { subject: oldName },
+          { $set: { subject: newName } }
+        ),
+        Battle.updateMany(
+          { subject: oldName },
+          { $set: { subject: newName } }
+        ),
+      ]);
+    }
+
+    res.json({ success: true, subject });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteSubject = async (req, res) => {
+  try {
+    const subject = await Subject.findByIdAndDelete(req.params.subjectId);
+    if (!subject) return res.status(404).json({ success: false, message: 'Subject not found' });
+
+    // Remove from User.subjects arrays (keep Test/Battle records for historical data)
+    await User.updateMany(
+      { subjects: subject.name },
+      { $pull: { subjects: subject.name } }
+    );
+
+    res.json({ success: true, message: 'Subject deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const toggleSubjectStatus = async (req, res) => {
+  try {
+    const subject = await Subject.findById(req.params.subjectId);
+    if (!subject) return res.status(404).json({ success: false, message: 'Subject not found' });
+
+    subject.isActive = !subject.isActive;
+    await subject.save();
+
+    res.json({ success: true, isActive: subject.isActive });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getActiveSubjects = async (req, res) => {
+  try {
+    await seedSubjectsIfEmpty();
+    const subjects = await Subject.find({ isActive: true }).sort({ name: 1 }).select('name').lean();
+    res.json({ success: true, subjects: subjects.map(s => s.name) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

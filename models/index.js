@@ -12,6 +12,7 @@ import MonthlyReward from './MonthlyReward.js';
 import MonthlyRewardJob from './MonthlyRewardJob.js';
 import AppConfig from './AppConfig.js';
 import AuditLog from './AuditLog.js';
+import Subject from './Subject.js';
 
 export {
   User,
@@ -27,7 +28,8 @@ export {
   MonthlyReward,
   MonthlyRewardJob,
   AppConfig,
-  AuditLog
+  AuditLog,
+  Subject
 };
 
 export default {
@@ -44,5 +46,6 @@ export default {
   MonthlyReward,
   MonthlyRewardJob,
   AppConfig,
-  AuditLog
+  AuditLog,
+  Subject
 };

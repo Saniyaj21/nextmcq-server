@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Post from '../models/Post.js';
+import Subject from '../models/Subject.js';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { sendEmail } from '../utils/sendMail.js';
@@ -358,12 +359,24 @@ export const completeOnboarding = async (req, res) => {
       });
     }
 
-    // Validate subjects if provided
-    if (subjects && (!Array.isArray(subjects) || subjects.length === 0)) {
+    // Validate subjects if provided (optional — users can add later in Profile)
+    if (subjects && !Array.isArray(subjects)) {
       return res.status(400).json({
         success: false,
-        message: 'At least one subject is required'
+        message: 'Subjects must be an array'
       });
+    }
+
+    if (subjects && subjects.length > 0) {
+      const activeSubjects = await Subject.find({ isActive: true }).select('name').lean();
+      const validNames = new Set(activeSubjects.map(s => s.name));
+      const invalid = subjects.filter(s => typeof s === 'string' && s.trim()).filter(s => !validNames.has(s.trim()));
+      if (invalid.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid subjects: ${invalid.join(', ')}`
+        });
+      }
     }
 
     // Institute field is now optional
@@ -622,10 +635,24 @@ export const updateProfile = async (req, res) => {
         });
       }
 
-      // Filter out empty subjects and trim whitespace
+      // Filter out empty subjects and trim whitespace (type guard for non-strings)
       const validSubjects = subjects
+        .filter(subject => typeof subject === 'string')
         .map(subject => subject.trim())
         .filter(subject => subject.length > 0);
+
+      // Validate against Subject collection
+      if (validSubjects.length > 0) {
+        const activeSubjects = await Subject.find({ isActive: true }).select('name').lean();
+        const validNames = new Set(activeSubjects.map(s => s.name));
+        const invalid = validSubjects.filter(s => !validNames.has(s));
+        if (invalid.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid subjects: ${invalid.join(', ')}`
+          });
+        }
+      }
 
       user.subjects = validSubjects;
     }

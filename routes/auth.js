@@ -8,6 +8,7 @@ import {
   updateProfile,
   searchUsers
 } from '../controllers/authController.js';
+import { getActiveSubjects } from '../controllers/adminController.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -22,5 +23,6 @@ router.post('/logout', authenticateUser, logout);                         // POS
 router.get('/profile', authenticateUser, getProfile);                     // GET /api/auth/profile - Get current user profile
 router.post('/update-profile', authenticateUser, updateProfile);           // POST /api/auth/update-profile - Update user profile
 router.get('/search-users', searchUsers);                                // GET /api/auth/search-users - Search users by name/email
+router.get('/subjects', getActiveSubjects);                              // GET /api/auth/subjects - Get active subjects list
 
 export default router;

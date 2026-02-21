@@ -2,6 +2,7 @@ import Battle from '../models/Battle.js';
 import Question from '../models/Question.js';
 import Test from '../models/Test.js';
 import User from '../models/User.js';
+import Subject from '../models/Subject.js';
 import { REWARDS } from '../constants/rewards.js';
 import { getSetting } from '../utils/settingsCache.js';
 
@@ -141,14 +142,21 @@ const checkWinConditions = async (battle, playerId) => {
 // GET /api/battle/subjects
 export const getSubjects = async (req, res) => {
   try {
-    const subjects = await Test.distinct('subject', {
-      isPublic: true,
-      questions: { $exists: true, $not: { $size: 0 } }
-    });
+    // Intersect: only return subjects that are both active in Subject collection AND have playable tests
+    const [activeSubjects, testSubjects] = await Promise.all([
+      Subject.find({ isActive: true }).select('name').lean(),
+      Test.distinct('subject', {
+        isPublic: true,
+        questions: { $exists: true, $not: { $size: 0 } }
+      }),
+    ]);
+
+    const activeNames = new Set(activeSubjects.map(s => s.name));
+    const subjects = testSubjects.filter(s => s && activeNames.has(s)).sort();
 
     res.status(200).json({
       success: true,
-      data: { subjects: subjects.filter(Boolean).sort() }
+      data: { subjects }
     });
   } catch (error) {
     console.error('Get subjects error:', error);

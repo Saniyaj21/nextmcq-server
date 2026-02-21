@@ -57,7 +57,12 @@ import {
   exportUsers,
   exportAttempts,
   exportTests,
-  getAuditLogs
+  getAuditLogs,
+  getSubjects,
+  createSubject,
+  updateSubject,
+  deleteSubject,
+  toggleSubjectStatus
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -153,6 +158,13 @@ router.put('/settings/:key', auditMiddleware('update', 'settings'), updateSettin
 router.get('/export/users', exportUsers);
 router.get('/export/attempts', exportAttempts);
 router.get('/export/tests', exportTests);
+
+// Subjects
+router.get('/subjects', getSubjects);
+router.post('/subjects', auditMiddleware('create', 'subject'), createSubject);
+router.put('/subjects/:subjectId', auditMiddleware('update', 'subject'), updateSubject);
+router.delete('/subjects/:subjectId', auditMiddleware('delete', 'subject'), deleteSubject);
+router.patch('/subjects/:subjectId/status', auditMiddleware('toggle_status', 'subject'), toggleSubjectStatus);
 
 // Audit Logs
 router.get('/audit-logs', getAuditLogs);
