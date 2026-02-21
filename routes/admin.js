@@ -39,6 +39,7 @@ import {
   getMonthlyRewardJobs,
   triggerMonthlyRewards,
   getPosts,
+  createPost,
   deletePost,
   getAttempts,
   getAttemptById,
@@ -126,6 +127,7 @@ router.post('/monthly-rewards/trigger', auditMiddleware('trigger', 'monthly_rewa
 
 // Posts
 router.get('/posts', getPosts);
+router.post('/posts', auditMiddleware('create', 'post'), createPost);
 router.delete('/posts/:postId', auditMiddleware('delete', 'post'), deletePost);
 
 // Attempts

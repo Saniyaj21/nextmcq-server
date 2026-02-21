@@ -989,6 +989,39 @@ export const getPosts = async (req, res) => {
   }
 };
 
+export const createPost = async (req, res) => {
+  try {
+    const { title, description } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Post title is required' });
+    }
+    if (!description || !description.trim()) {
+      return res.status(400).json({ success: false, message: 'Post description is required' });
+    }
+    if (title.trim().length > 200) {
+      return res.status(400).json({ success: false, message: 'Title cannot exceed 200 characters' });
+    }
+    if (description.trim().length > 2000) {
+      return res.status(400).json({ success: false, message: 'Description cannot exceed 2000 characters' });
+    }
+
+    const post = await Post.create({
+      type: 'user_post',
+      creator: req.user._id,
+      title: title.trim(),
+      description: description.trim(),
+      data: {}
+    });
+
+    await post.populate('creator', 'name email');
+
+    res.status(201).json({ success: true, message: 'Post created successfully', post });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const deletePost = async (req, res) => {
   try {
     const post = await Post.findByIdAndDelete(req.params.postId);
