@@ -12,19 +12,24 @@ const BATCH_SIZE = 50; // Process 50 users per batch
 const MAX_PROCESSING_TIME = 25000; // 25 seconds max per execution
 
 /**
+ * Validate API key from request headers or query params
+ */
+function validateApiKey(req) {
+  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+  const expectedKey = process.env.MONTHLY_REWARDS_API_KEY || process.env.CACHE_REFRESH_API_KEY;
+  return apiKey && apiKey === expectedKey;
+}
+
+/**
  * STEP 1: Initialize Monthly Rewards Processing
  * POST /api/ranking/monthly-rewards/init
- * 
+ *
  * Creates jobs for the previous month
  * Called by cron on 1st of month
  */
 export const initMonthlyRewards = async (req, res) => {
   try {
-    // Validate API key
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-    const expectedKey = process.env.MONTHLY_REWARDS_API_KEY || process.env.CACHE_REFRESH_API_KEY;
-    
-    if (!apiKey || apiKey !== expectedKey) {
+    if (!validateApiKey(req)) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: Invalid or missing API key'
@@ -44,11 +49,11 @@ export const initMonthlyRewards = async (req, res) => {
         // Find or create job
         const job = await MonthlyRewardJob.findOrCreateJob(month, year, category);
         
-        // If already completed, skip
-        if (job.status === 'completed') {
+        // If already completed or in progress, skip
+        if (job.status === 'completed' || job.status === 'processing') {
           results.push({
             category,
-            status: 'already_completed',
+            status: `already_${job.status}`,
             processedUsers: job.processedUsers
           });
           continue;
@@ -117,11 +122,7 @@ export const initMonthlyRewards = async (req, res) => {
  */
 export const processBatch = async (req, res) => {
   try {
-    // Validate API key
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-    const expectedKey = process.env.MONTHLY_REWARDS_API_KEY || process.env.CACHE_REFRESH_API_KEY;
-    
-    if (!apiKey || apiKey !== expectedKey) {
+    if (!validateApiKey(req)) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: Invalid or missing API key'
@@ -153,6 +154,13 @@ export const processBatch = async (req, res) => {
       }
 
       try {
+        // Reset failed jobs back to processing for retry
+        if (job.status === 'failed') {
+          console.log(`[MonthlyRewards] Retrying failed job ${job._id} (attempt ${job.retryCount + 1})`);
+          job.status = 'processing';
+          await job.save();
+        }
+
         const result = await processJobBatch(job);
         results.push(result);
       } catch (error) {
@@ -200,16 +208,17 @@ async function processJobBatch(job) {
   // Mark as processing
   await job.markProcessing();
 
-  // Load snapshot
-  const snapshot = await MonthlyRankingSnapshot.findById(job.snapshotId);
+  // Calculate batch range
+  const startIdx = job.currentBatch * job.batchSize;
+
+  // Load only the slice of rankings needed for this batch
+  const snapshot = await MonthlyRankingSnapshot.findById(job.snapshotId)
+    .select({ rankings: { $slice: [startIdx, job.batchSize] }, totalUsers: 1, processed: 1, processedAt: 1 });
   if (!snapshot) {
     throw new Error(`Snapshot not found: ${job.snapshotId}`);
   }
 
-  // Calculate batch range
-  const startIdx = job.currentBatch * job.batchSize;
-  const endIdx = Math.min(startIdx + job.batchSize, snapshot.rankings.length);
-  const batchUsers = snapshot.rankings.slice(startIdx, endIdx);
+  const batchUsers = snapshot.rankings;
 
   if (batchUsers.length === 0) {
     // No more users to process, mark as completed
@@ -279,10 +288,11 @@ async function processJobBatch(job) {
     await job.markCompleted();
     console.log(`[MonthlyRewards] Job completed for ${job.category}: ${job.processedUsers} users processed`);
     
-    // Mark snapshot as processed
-    snapshot.processed = true;
-    snapshot.processedAt = new Date();
-    await snapshot.save();
+    // Mark snapshot as processed (use updateOne to avoid overwriting the full rankings array)
+    await MonthlyRankingSnapshot.updateOne(
+      { _id: snapshot._id },
+      { $set: { processed: true, processedAt: new Date() } }
+    );
   }
 
   return {
@@ -386,10 +396,7 @@ async function awardSingleReward({ userId, rank, tier, coins, xp, badge, month, 
  */
 export const getJobsStatus = async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-    const expectedKey = process.env.MONTHLY_REWARDS_API_KEY || process.env.CACHE_REFRESH_API_KEY;
-    
-    if (!apiKey || apiKey !== expectedKey) {
+    if (!validateApiKey(req)) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: Invalid or missing API key'

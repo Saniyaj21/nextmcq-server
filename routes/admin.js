@@ -37,7 +37,6 @@ import {
   toggleBannerStatus,
   getMonthlyRewards,
   getMonthlyRewardJobs,
-  triggerMonthlyRewards,
   getPosts,
   createPost,
   deletePost,
@@ -123,7 +122,6 @@ router.patch('/banners/:bannerId/status', auditMiddleware('toggle_status', 'bann
 // Monthly Rewards
 router.get('/monthly-rewards', getMonthlyRewards);
 router.get('/monthly-rewards/jobs', getMonthlyRewardJobs);
-router.post('/monthly-rewards/trigger', auditMiddleware('trigger', 'monthly_rewards'), triggerMonthlyRewards);
 
 // Posts
 router.get('/posts', getPosts);

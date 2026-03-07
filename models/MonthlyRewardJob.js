@@ -109,7 +109,8 @@ const monthlyRewardJobSchema = new mongoose.Schema({
     achiever: { type: Number, default: 0 },
     performer: { type: Number, default: 0 },
     unplaced: { type: Number, default: 0 },
-    totalCoinsAwarded: { type: Number, default: 0 }
+    totalCoinsAwarded: { type: Number, default: 0 },
+    totalXpAwarded: { type: Number, default: 0 }
   }
 }, {
   timestamps: true
@@ -146,10 +147,10 @@ monthlyRewardJobSchema.statics.findOrCreateJob = async function(month, year, cat
  */
 monthlyRewardJobSchema.statics.getPendingJobs = async function() {
   return this.find({
-    status: { $in: ['pending', 'processing'] },
     $or: [
-      { lastProcessedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } }, // Stale (5 min)
-      { lastProcessedAt: null }
+      { status: 'pending' },
+      { status: 'processing', lastProcessedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } },
+      { status: 'failed', retryCount: { $lt: 3 } }
     ]
   }).sort({ createdAt: 1 });
 };

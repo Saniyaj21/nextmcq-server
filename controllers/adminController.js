@@ -940,26 +940,6 @@ export const getMonthlyRewardJobs = async (req, res) => {
   }
 };
 
-export const triggerMonthlyRewards = async (req, res) => {
-  try {
-    const now = new Date();
-    const month = req.body.month || (now.getMonth() === 0 ? 12 : now.getMonth());
-    const year = req.body.year || (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
-
-    const categories = ['students', 'teachers'];
-    const results = [];
-
-    for (const category of categories) {
-      const job = await MonthlyRewardJob.findOrCreateJob(month, year, category);
-      results.push({ category, jobId: job._id, status: job.status });
-    }
-
-    res.json({ success: true, message: 'Monthly reward jobs created/found', results });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // ==========================================
 // POSTS
 // ==========================================

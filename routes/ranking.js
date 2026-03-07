@@ -5,9 +5,8 @@ import {
   getRewardTiers
 } from '../controllers/rankingController.js';
 import {
-  processMonthlyRewards,
   getUserRewardHistory
-} from '../controllers/monthlyRewardsController.js';
+} from '../controllers/monthlyRewardsControllerV2.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -20,7 +19,6 @@ router.get('/leaderboard', authenticateUser, getLeaderboard);  // GET /api/ranki
 router.get('/user-rank', authenticateUser, getUserRank);       // GET /api/ranking/user-rank - Get current user's rank
 
 // Monthly rewards routes
-router.post('/monthly-rewards', processMonthlyRewards);  // POST /api/ranking/monthly-rewards - Process monthly rewards (cron job)
 router.get('/monthly-rewards/history', authenticateUser, getUserRewardHistory);  // GET /api/ranking/monthly-rewards/history - Get user's reward history
 
 export default router;
