@@ -763,6 +763,7 @@ export const getTestDetails = async (req, res) => {
       description: test.description,
       subject: test.subject,
       chapter: test.chapter,
+      class: test.class || null,
       timeLimit: test.timeLimit,
       coinFee: coinFee,
       isPublic: test.isPublic,

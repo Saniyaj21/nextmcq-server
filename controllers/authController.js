@@ -330,8 +330,8 @@ export const logout = async (req, res) => {
  */
 export const completeOnboarding = async (req, res) => {
   try {
-    const { name, role, subjects, referralCode } = req.body;
-    
+    const { name, role, subjects, referralCode, class: userClass } = req.body;
+
     // User comes from middleware
     const user = req.user;
     const userId = req.userId;
@@ -379,6 +379,15 @@ export const completeOnboarding = async (req, res) => {
       }
     }
 
+    // Validate class if provided
+    const validClasses = ['8', '9', '10', '11', '12', 'other'];
+    if (userClass && !validClasses.includes(userClass)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid class. Must be one of: ${validClasses.join(', ')}`
+      });
+    }
+
     // Institute field is now optional
 
     // Validate referral code if provided
@@ -416,6 +425,11 @@ export const completeOnboarding = async (req, res) => {
       isProfileComplete: true,
       referralCode: userReferralCode
     };
+
+    // Add class if provided (optional, mainly for students)
+    if (userClass) {
+      updateData.class = userClass;
+    }
 
     // Add referrer if referral code was provided
     if (referrer) {
@@ -561,6 +575,7 @@ export const getProfile = async (req, res) => {
           name: user.name || '',
           email: user.email,
           role: user.role || 'student',
+          class: user.class || null,
           subjects: user.subjects || [],
           institute: user.institute,
           isActive: user.isActive,
@@ -608,7 +623,7 @@ export const getProfile = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const { institute, subjects } = req.body;
+    const { institute, subjects, class: userClass } = req.body;
     const userId = req.userId;
 
     // Get current user
@@ -623,6 +638,18 @@ export const updateProfile = async (req, res) => {
     // Update institute if provided
     if (institute) {
       user.institute = institute;
+    }
+
+    // Update class if provided
+    if (userClass !== undefined) {
+      const validClasses = ['8', '9', '10', '11', '12', 'other', null];
+      if (userClass !== null && !validClasses.includes(userClass)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid class. Must be one of: 8, 9, 10, 11, 12, other`
+        });
+      }
+      user.class = userClass;
     }
 
     // Update subjects if provided
@@ -690,6 +717,7 @@ export const updateProfile = async (req, res) => {
           name: updatedUser.name || '',
           email: updatedUser.email,
           role: updatedUser.role || 'student',
+          class: updatedUser.class || null,
           subjects: updatedUser.subjects || [],
           institute: updatedUser.institute,
           isActive: updatedUser.isActive,

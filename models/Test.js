@@ -29,6 +29,12 @@ const testSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    // Target class for this test (null = for all classes)
+    class: {
+      type: String,
+      enum: ['8', '9', '10', '11', '12', 'other', null],
+      default: null
+    },
     description: {
       type: String,
       trim: true

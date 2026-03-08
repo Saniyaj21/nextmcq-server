@@ -71,6 +71,7 @@ export const getAllTests = async (req, res) => {
     const {
       search = '',
       subject,
+      class: classFilter,
       minRating = '0',
       sortBy = 'recent',
       page = '1',
@@ -116,6 +117,20 @@ export const getAllTests = async (req, res) => {
     // Filter by subject
     if (subject && subject !== 'All') {
       pipeline.push({ $match: { subject } });
+    }
+
+    // Filter by class
+    if (classFilter && classFilter !== 'All') {
+      // Show tests for the selected class + tests with no class set (universal tests)
+      pipeline.push({
+        $match: {
+          $or: [
+            { class: classFilter },
+            { class: null },
+            { class: { $exists: false } }
+          ]
+        }
+      });
     }
 
     // Lookup ratings array for aggregation
@@ -235,7 +250,7 @@ export const getAllTests = async (req, res) => {
           { $limit: limitNum },
           // Include creator fields in output
           { $project: {
-            title: 1, description: 1, subject:1, chapter:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
+            title: 1, description: 1, subject:1, chapter:1, class:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
             createdBy: { _id: '$creator._id', name: '$creator.name', email: '$creator.email', profileImage: '$creator.profileImage' },
             averageRating: 1, totalRatings: 1, isPromoted: 1, promotedUntil: 1, promotionCost: 1, promotedAt: 1
           } }
@@ -266,7 +281,7 @@ export const getAllTests = async (req, res) => {
 
 export const createTest = async (req, res) => {
   try {
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, class: testClass } = req.body;
     const createdBy = req?.userId; // Get user ID from request.
 
     if (!createdBy) {
@@ -337,11 +352,23 @@ export const createTest = async (req, res) => {
       }
     }
 
+    // Validate class if provided
+    if (testClass !== undefined && testClass !== null) {
+      const validClasses = ['8', '9', '10', '11', '12', 'other'];
+      if (!validClasses.includes(testClass)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid class. Must be one of: ${validClasses.join(', ')}`
+        });
+      }
+    }
+
     const test = await Test.create({
       title,
       description,
       subject,
       chapter,
+      class: testClass || null,
       timeLimit,
       coinFee: coinFee !== undefined ? coinFee : 0,
       isPublic,
@@ -397,7 +424,7 @@ export const createTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, questions } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, questions, class: testClass } = req.body;
     const userId = req?.userId;
 
     if (!userId) {
@@ -468,12 +495,24 @@ export const updateTest = async (req, res) => {
       }
     }
 
+    // Validate class if provided
+    if (testClass !== undefined && testClass !== null) {
+      const validClasses = ['8', '9', '10', '11', '12', 'other'];
+      if (!validClasses.includes(testClass)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid class. Must be one of: ${validClasses.join(', ')}`
+        });
+      }
+    }
+
     // Build update object with only provided fields
     const updateData = {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
       ...(subject !== undefined && { subject }),
       ...(chapter !== undefined && { chapter }),
+      ...(testClass !== undefined && { class: testClass }),
       ...(timeLimit !== undefined && { timeLimit }),
       ...(coinFee !== undefined && { coinFee }),
       ...(isPublic !== undefined && { isPublic }),

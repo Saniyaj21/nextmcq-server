@@ -57,6 +57,13 @@ const userSchema = new mongoose.Schema({
     trim: true
   }],
 
+  // Student class (8-12 or 'other')
+  class: {
+    type: String,
+    enum: ['8', '9', '10', '11', '12', 'other', null],
+    default: null
+  },
+
   // ==========================================
   // ACCOUNT MANAGEMENT
   // ==========================================
