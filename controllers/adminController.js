@@ -285,7 +285,7 @@ export const getQuestionsAnalytics = async (req, res) => {
 // ==========================================
 export const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, role, status } = req.query;
+    const { page = 1, limit = 20, search, role, status, class: classFilter } = req.query;
     const query = {};
 
     if (search) {
@@ -295,10 +295,11 @@ export const getUsers = async (req, res) => {
     if (role) query.role = role;
     if (status === 'active') query.isActive = true;
     if (status === 'inactive') query.isActive = false;
+    if (classFilter) query.class = classFilter;
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select('name email role institute rewards.level isActive createdAt profileImage')
+        .select('name email role institute rewards.level isActive createdAt profileImage class')
         .populate('institute', 'name')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -392,17 +393,18 @@ export const changeUserRole = async (req, res) => {
 // ==========================================
 export const getTests = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, class: classFilter } = req.query;
     const query = {};
 
     if (search) {
       const regex = new RegExp(search, 'i');
       query.$or = [{ title: regex }, { subject: regex }];
     }
+    if (classFilter) query.class = classFilter;
 
     const [tests, total] = await Promise.all([
       Test.find(query)
-        .select('title subject createdBy attemptsCount averageRating isPublic questions createdAt')
+        .select('title subject class createdBy attemptsCount averageRating isPublic questions createdAt')
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -528,10 +530,14 @@ export const importTest = async (req, res) => {
     const questionIds = createdQuestions.map(q => q._id);
 
     // Create test
+    const validClasses = ['8', '9', '10', '11', '12', 'other'];
+    const testClass = testData.class && validClasses.includes(testData.class) ? testData.class : null;
+
     const test = await Test.create({
       title: testData.title.trim(),
       subject: testData.subject.trim(),
       chapter: testData.chapter?.trim() || undefined,
+      class: testClass,
       description: testData.description?.trim() || undefined,
       timeLimit,
       coinFee: Number(testData.coinFee) || 0,
