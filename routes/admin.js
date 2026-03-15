@@ -31,6 +31,8 @@ import {
   updateInstitute,
   toggleInstituteStatus,
   getBanners,
+  uploadBannerImage,
+  deleteBannerImage,
   createBanner,
   updateBanner,
   deleteBanner,
@@ -114,6 +116,8 @@ router.patch('/institutes/:instituteId/status', auditMiddleware('toggle_status',
 
 // Banners
 router.get('/banners', getBanners);
+router.post('/banners/upload-image', uploadBannerImage);
+router.post('/banners/delete-image', deleteBannerImage);
 router.post('/banners', auditMiddleware('create', 'banner'), createBanner);
 router.put('/banners/:bannerId', auditMiddleware('update', 'banner'), updateBanner);
 router.delete('/banners/:bannerId', auditMiddleware('delete', 'banner'), deleteBanner);

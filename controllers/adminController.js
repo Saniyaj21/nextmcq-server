@@ -13,6 +13,7 @@ import Batch from '../models/Batch.js';
 import AppConfig from '../models/AppConfig.js';
 import { invalidateCache } from '../utils/settingsCache.js';
 import AuditLog from '../models/AuditLog.js';
+import { v2 as cloudinary } from 'cloudinary';
 import Subject from '../models/Subject.js';
 import Battle from '../models/Battle.js';
 import { sendEmail } from '../utils/sendMail.js';
@@ -852,10 +853,64 @@ export const getBanners = async (req, res) => {
   }
 };
 
+export const uploadBannerImage = async (req, res) => {
+  try {
+    const { imageData } = req.body;
+
+    if (!imageData) {
+      return res.status(400).json({ success: false, message: 'Image data is required' });
+    }
+
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'nextmcq-banner-images',
+          public_id: `banner-${Date.now()}`,
+          resource_type: 'image',
+          transformation: [{ quality: 'auto:good' }]
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(buffer);
+    });
+
+    res.json({
+      success: true,
+      imageURL: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+    });
+  } catch (error) {
+    console.error('Banner image upload error:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload banner image' });
+  }
+};
+
+export const deleteBannerImage = async (req, res) => {
+  try {
+    const { publicId } = req.body;
+
+    if (!publicId) {
+      return res.status(400).json({ success: false, message: 'Public ID is required' });
+    }
+
+    await cloudinary.uploader.destroy(publicId);
+    res.json({ success: true, message: 'Image deleted' });
+  } catch (error) {
+    console.error('Banner image delete error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete image' });
+  }
+};
+
 export const createBanner = async (req, res) => {
   try {
-    const { title, imageURL, isActive } = req.body;
-    const banner = await Banner.create({ title, imageURL, isActive });
+    const { title, imageURL, imagePublicId, isActive } = req.body;
+    const banner = await Banner.create({ title, imageURL, imagePublicId, isActive });
     res.status(201).json({ success: true, banner });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -864,10 +919,26 @@ export const createBanner = async (req, res) => {
 
 export const updateBanner = async (req, res) => {
   try {
-    const { title, imageURL, isActive } = req.body;
+    const { title, imageURL, imagePublicId, isActive } = req.body;
+
+    // If image is being replaced, delete the old one from Cloudinary
+    if (imageURL !== undefined) {
+      const existingBanner = await Banner.findById(req.params.bannerId);
+      if (!existingBanner) return res.status(404).json({ success: false, message: 'Banner not found' });
+
+      if (existingBanner.imagePublicId) {
+        try {
+          await cloudinary.uploader.destroy(existingBanner.imagePublicId);
+        } catch (deleteError) {
+          console.warn('Failed to delete old banner image from Cloudinary:', deleteError.message);
+        }
+      }
+    }
+
     const update = {};
     if (title !== undefined) update.title = title;
     if (imageURL !== undefined) update.imageURL = imageURL;
+    if (imagePublicId !== undefined) update.imagePublicId = imagePublicId;
     if (isActive !== undefined) update.isActive = isActive;
 
     const banner = await Banner.findByIdAndUpdate(
@@ -888,6 +959,15 @@ export const deleteBanner = async (req, res) => {
   try {
     const banner = await Banner.findByIdAndDelete(req.params.bannerId);
     if (!banner) return res.status(404).json({ success: false, message: 'Banner not found' });
+
+    // Delete image from Cloudinary
+    if (banner.imagePublicId) {
+      try {
+        await cloudinary.uploader.destroy(banner.imagePublicId);
+      } catch (deleteError) {
+        console.warn('Failed to delete banner image from Cloudinary:', deleteError.message);
+      }
+    }
 
     res.json({ success: true, message: 'Banner deleted' });
   } catch (error) {

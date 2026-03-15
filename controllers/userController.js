@@ -4,6 +4,8 @@ import Question from '../models/Question.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { v2 as cloudinary } from 'cloudinary';
 import validator from 'validator';
+import { REWARDS } from '../constants/rewards.js';
+import { getSetting } from '../utils/settingsCache.js';
 
 /**
  * Get public profile by user ID
@@ -274,6 +276,34 @@ export const uploadProfileImage = async (req, res) => {
       message: 'Failed to upload profile image to Cloudinary',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+/**
+ * Get referral stats for the authenticated user
+ * GET /api/user/referral-stats
+ */
+export const getReferralStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const usersJoined = await User.countDocuments({ referredBy: userId });
+
+    res.json({
+      success: true,
+      data: {
+        usersJoined,
+        referrerReward: {
+          coins: getSetting('rewards.referral.referrer.coins', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER.coins),
+          xp: getSetting('rewards.referral.referrer.xp', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFERRER.xp),
+        },
+        refereeReward: {
+          coins: getSetting('rewards.referral.referee.coins', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE.coins),
+          xp: getSetting('rewards.referral.referee.xp', REWARDS.REFERRAL.SUCCESSFUL_SIGNUP.REFEREE.xp),
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

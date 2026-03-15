@@ -9,6 +9,10 @@ const bannerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  imagePublicId: {
+    type: String,
+    default: null,
+  },
   isActive: {
     type: Boolean,
     default: true,
