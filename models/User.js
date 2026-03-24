@@ -334,10 +334,11 @@ userSchema.statics.findByReferralCode = function (code) {
 userSchema.statics.getLeaderboard = function (category = 'global', limit = 100, instituteId = null, level = null, skip = 0) {
   const pipeline = [];
 
-  // First stage: Match active users
+  // First stage: Match active users, exclude admins from rankings
   pipeline.push({
     $match: {
-      isActive: true
+      isActive: true,
+      role: { $ne: 'admin' }
     }
   });
 
