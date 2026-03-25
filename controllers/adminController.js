@@ -490,18 +490,44 @@ export const updateTest = async (req, res) => {
       ...(isPublic !== undefined && { isPublic }),
     };
 
-    // If questions are provided, update each question document
+    // If questions are provided, handle add/update/remove
     if (questions && Array.isArray(questions)) {
+      const incomingIds = questions.filter((q) => q._id).map((q) => q._id);
+      const existingIds = test.questions.map((id) => id.toString());
+
+      // Remove questions that are no longer in the list
+      const removedIds = existingIds.filter((id) => !incomingIds.includes(id));
+      if (removedIds.length > 0) {
+        await Question.deleteMany({ _id: { $in: removedIds } });
+      }
+
+      const finalQuestionIds = [];
+
       for (const q of questions) {
         if (q._id) {
+          // Update existing question
           await Question.findByIdAndUpdate(q._id, {
             question: q.question,
             options: q.options,
             correctAnswer: q.correctAnswer,
             explanation: q.explanation || '',
           });
+          finalQuestionIds.push(q._id);
+        } else {
+          // Create new question
+          const newQuestion = await Question.create({
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation || '',
+            createdBy: test.createdBy,
+            tests: [testId],
+          });
+          finalQuestionIds.push(newQuestion._id);
         }
       }
+
+      updateData.questions = finalQuestionIds;
     }
 
     const updatedTest = await Test.findByIdAndUpdate(testId, updateData, { new: true })
