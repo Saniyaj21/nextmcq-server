@@ -6,13 +6,15 @@ import {
   submitAnswer,
   getBattleState,
   forfeitBattle,
-  getSubjects
+  getSubjects,
+  getTestsForSubject
 } from '../controllers/battleController.js';
 import { authenticateUser } from '../middlewares/auth.js';
 
 const router = express.Router();
 
 router.get('/subjects', authenticateUser, getSubjects);
+router.get('/tests/:subject', authenticateUser, getTestsForSubject);
 router.post('/create', authenticateUser, createBattle);
 router.post('/join', authenticateUser, joinBattle);
 router.get('/:battleId', authenticateUser, getBattle);

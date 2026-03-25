@@ -164,11 +164,37 @@ export const getSubjects = async (req, res) => {
   }
 };
 
+// GET /api/battle/tests/:subject
+export const getTestsForSubject = async (req, res) => {
+  try {
+    const { subject } = req.params;
+
+    const tests = await Test.find({
+      subject,
+      isPublic: true,
+      questions: { $exists: true, $not: { $size: 0 } }
+    })
+      .select('title questions')
+      .lean();
+
+    const result = tests.map(t => ({
+      _id: t._id,
+      title: t.title,
+      questionCount: Array.isArray(t.questions) ? t.questions.length : 0,
+    }));
+
+    res.status(200).json({ success: true, data: { tests: result } });
+  } catch (error) {
+    console.error('Get tests for subject error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch tests' });
+  }
+};
+
 // POST /api/battle/create
 export const createBattle = async (req, res) => {
   try {
     const userId = req.userId;
-    const { subject, maxQuestions = 10, targetScore = 20, correctMarks = 2, wrongMarks = 1 } = req.body;
+    const { subject, testId, maxQuestions = 10, targetScore = 20, correctMarks = 2, wrongMarks = 1 } = req.body;
 
     if (!subject) {
       return res.status(400).json({ success: false, message: 'Subject is required' });
@@ -187,9 +213,18 @@ export const createBattle = async (req, res) => {
       });
     }
 
-    // Find questions for the subject
-    const tests = await Test.find({ subject }).select('_id');
-    const testIds = tests.map(t => t._id);
+    // Find questions — from specific test or all tests for the subject
+    let testIds;
+    if (testId) {
+      const test = await Test.findById(testId).select('_id subject');
+      if (!test || test.subject !== subject) {
+        return res.status(400).json({ success: false, message: 'Invalid test for this subject' });
+      }
+      testIds = [test._id];
+    } else {
+      const tests = await Test.find({ subject }).select('_id');
+      testIds = tests.map(t => t._id);
+    }
 
     if (testIds.length === 0) {
       return res.status(400).json({ success: false, message: 'No tests found for this subject' });
@@ -204,7 +239,7 @@ export const createBattle = async (req, res) => {
     if (questions.length < maxQuestions) {
       return res.status(400).json({
         success: false,
-        message: `Only ${questions.length} questions available for this subject. Please choose ${questions.length} or fewer.`,
+        message: `Only ${questions.length} questions available${testId ? ' in this test' : ' for this subject'}. Please choose ${questions.length} or fewer.`,
         data: { availableQuestions: questions.length }
       });
     }
