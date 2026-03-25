@@ -468,6 +468,53 @@ export const deleteTest = async (req, res) => {
 };
 
 // ==========================================
+// UPDATE TEST (admin - no ownership check)
+// ==========================================
+export const updateTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const { title, subject, chapter, description, timeLimit, coinFee, isPublic, questions, class: testClass } = req.body;
+
+    const test = await Test.findById(testId);
+    if (!test) return res.status(404).json({ success: false, message: 'Test not found' });
+
+    // Build update for test metadata
+    const updateData = {
+      ...(title !== undefined && { title }),
+      ...(subject !== undefined && { subject }),
+      ...(chapter !== undefined && { chapter }),
+      ...(description !== undefined && { description }),
+      ...(testClass !== undefined && { class: testClass }),
+      ...(timeLimit !== undefined && { timeLimit }),
+      ...(coinFee !== undefined && { coinFee }),
+      ...(isPublic !== undefined && { isPublic }),
+    };
+
+    // If questions are provided, update each question document
+    if (questions && Array.isArray(questions)) {
+      for (const q of questions) {
+        if (q._id) {
+          await Question.findByIdAndUpdate(q._id, {
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation || '',
+          });
+        }
+      }
+    }
+
+    const updatedTest = await Test.findByIdAndUpdate(testId, updateData, { new: true })
+      .populate('createdBy', 'name email')
+      .populate('questions');
+
+    res.json({ success: true, test: updatedTest });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
 // IMPORT TEST (from XLSX data)
 // ==========================================
 export const importTest = async (req, res) => {
