@@ -286,7 +286,7 @@ export const getQuestionsAnalytics = async (req, res) => {
 // ==========================================
 export const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, role, status, class: classFilter } = req.query;
+    const { page = 1, limit = 20, search, role, status, class: classFilter, semester: semesterFilter } = req.query;
     const query = {};
 
     if (search) {
@@ -297,10 +297,11 @@ export const getUsers = async (req, res) => {
     if (status === 'active') query.isActive = true;
     if (status === 'inactive') query.isActive = false;
     if (classFilter) query.class = classFilter;
+    if (semesterFilter) query.semester = semesterFilter;
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select('name email role institute rewards.level isActive createdAt profileImage class')
+        .select('name email role institute rewards.level isActive createdAt profileImage class semester')
         .populate('institute', 'name')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -335,12 +336,18 @@ export const getUserById = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    const { name, role, isActive, institute } = req.body;
+    const { name, role, isActive, institute, class: userClass, semester } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (role !== undefined) update.role = role;
     if (isActive !== undefined) update.isActive = isActive;
     if (institute !== undefined) update.institute = institute || null;
+    if (userClass !== undefined) update.class = userClass || null;
+    if (semester !== undefined) {
+      const effectiveClass = userClass !== undefined ? userClass : undefined;
+      // Only set semester if we know class is 11/12, or if we're not changing class
+      update.semester = (semester && ['1', '2'].includes(semester)) ? semester : null;
+    }
 
     const user = await User.findByIdAndUpdate(req.params.userId, update, { new: true, runValidators: true })
       .populate('institute')
@@ -394,7 +401,7 @@ export const changeUserRole = async (req, res) => {
 // ==========================================
 export const getTests = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, class: classFilter } = req.query;
+    const { page = 1, limit = 20, search, class: classFilter, semester: semesterFilter } = req.query;
     const query = {};
 
     if (search) {
@@ -402,10 +409,11 @@ export const getTests = async (req, res) => {
       query.$or = [{ title: regex }, { subject: regex }];
     }
     if (classFilter) query.class = classFilter;
+    if (semesterFilter) query.semester = semesterFilter;
 
     const [tests, total] = await Promise.all([
       Test.find(query)
-        .select('title subject class createdBy attemptsCount averageRating isPublic questions createdAt')
+        .select('title subject class semester createdBy attemptsCount averageRating isPublic questions createdAt')
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -473,18 +481,24 @@ export const deleteTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, subject, chapter, description, timeLimit, coinFee, isPublic, questions, class: testClass } = req.body;
+    const { title, subject, chapter, description, timeLimit, coinFee, isPublic, questions, class: testClass, semester } = req.body;
 
     const test = await Test.findById(testId);
     if (!test) return res.status(404).json({ success: false, message: 'Test not found' });
 
     // Build update for test metadata
+    const effectiveClass = testClass !== undefined ? testClass : test.class;
+    const resolvedSemester = (effectiveClass === '11' || effectiveClass === '12')
+      ? (semester && ['1', '2'].includes(semester) ? semester : (testClass !== undefined ? null : test.semester))
+      : null;
+
     const updateData = {
       ...(title !== undefined && { title }),
       ...(subject !== undefined && { subject }),
       ...(chapter !== undefined && { chapter }),
       ...(description !== undefined && { description }),
       ...(testClass !== undefined && { class: testClass }),
+      ...(semester !== undefined || testClass !== undefined) && { semester: resolvedSemester },
       ...(timeLimit !== undefined && { timeLimit }),
       ...(coinFee !== undefined && { coinFee }),
       ...(isPublic !== undefined && { isPublic }),
@@ -606,12 +620,16 @@ export const importTest = async (req, res) => {
     // Create test
     const validClasses = ['8', '9', '10', '11', '12', 'other'];
     const testClass = testData.class && validClasses.includes(testData.class) ? testData.class : null;
+    const testSemester = (testClass === '11' || testClass === '12') && ['1', '2'].includes(testData.semester)
+      ? testData.semester
+      : null;
 
     const test = await Test.create({
       title: testData.title.trim(),
       subject: testData.subject.trim(),
       chapter: testData.chapter?.trim() || undefined,
       class: testClass,
+      semester: testSemester,
       description: testData.description?.trim() || undefined,
       timeLimit,
       coinFee: Number(testData.coinFee) || 0,

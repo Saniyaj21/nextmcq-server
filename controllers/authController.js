@@ -330,7 +330,7 @@ export const logout = async (req, res) => {
  */
 export const completeOnboarding = async (req, res) => {
   try {
-    const { name, role, subjects, referralCode, class: userClass } = req.body;
+    const { name, role, subjects, referralCode, class: userClass, semester } = req.body;
 
     // User comes from middleware
     const user = req.user;
@@ -429,6 +429,15 @@ export const completeOnboarding = async (req, res) => {
     // Add class if provided (optional, mainly for students)
     if (userClass) {
       updateData.class = userClass;
+    }
+
+    // Add semester if class is 11 or 12
+    if (userClass === '11' || userClass === '12') {
+      if (semester && ['1', '2'].includes(semester)) {
+        updateData.semester = semester;
+      } else {
+        updateData.semester = '1'; // default to semester 1
+      }
     }
 
     // Add referrer if referral code was provided
@@ -576,6 +585,7 @@ export const getProfile = async (req, res) => {
           email: user.email,
           role: user.role || 'student',
           class: user.class || null,
+          semester: user.semester || null,
           subjects: user.subjects || [],
           institute: user.institute,
           isActive: user.isActive,
@@ -623,7 +633,7 @@ export const getProfile = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const { institute, subjects, class: userClass } = req.body;
+    const { institute, subjects, class: userClass, semester } = req.body;
     const userId = req.userId;
 
     // Get current user
@@ -650,6 +660,17 @@ export const updateProfile = async (req, res) => {
         });
       }
       user.class = userClass;
+    }
+
+    // Update semester if provided (only relevant for class 11/12)
+    if (semester !== undefined) {
+      const effectiveClass = userClass !== undefined ? userClass : user.class;
+      if (effectiveClass === '11' || effectiveClass === '12') {
+        if (semester !== null && !['1', '2'].includes(semester)) {
+          return res.status(400).json({ success: false, message: 'Invalid semester. Must be 1 or 2' });
+        }
+        user.semester = semester || '1';
+      }
     }
 
     // Update subjects if provided
@@ -718,6 +739,7 @@ export const updateProfile = async (req, res) => {
           email: updatedUser.email,
           role: updatedUser.role || 'student',
           class: updatedUser.class || null,
+          semester: updatedUser.semester || null,
           subjects: updatedUser.subjects || [],
           institute: updatedUser.institute,
           isActive: updatedUser.isActive,

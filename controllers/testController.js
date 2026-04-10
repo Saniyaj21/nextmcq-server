@@ -72,6 +72,7 @@ export const getAllTests = async (req, res) => {
       search = '',
       subject,
       class: classFilter,
+      semester: semesterFilter,
       minRating = '0',
       sortBy = 'recent',
       page = '1',
@@ -128,6 +129,19 @@ export const getAllTests = async (req, res) => {
             { class: classFilter },
             { class: null },
             { class: { $exists: false } }
+          ]
+        }
+      });
+    }
+
+    // Filter by semester (only meaningful for class 11/12; show matching semester + universal null)
+    if (semesterFilter && semesterFilter !== 'All') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { semester: semesterFilter },
+            { semester: null },
+            { semester: { $exists: false } }
           ]
         }
       });
@@ -250,7 +264,7 @@ export const getAllTests = async (req, res) => {
           { $limit: limitNum },
           // Include creator fields in output
           { $project: {
-            title: 1, description: 1, subject:1, chapter:1, class:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
+            title: 1, description: 1, subject:1, chapter:1, class:1, semester:1, timeLimit:1, coinFee:1, isPublic:1, attemptsCount:1, questions:1, createdAt:1,
             createdBy: { _id: '$creator._id', name: '$creator.name', email: '$creator.email', profileImage: '$creator.profileImage' },
             averageRating: 1, totalRatings: 1, isPromoted: 1, promotedUntil: 1, promotionCost: 1, promotedAt: 1
           } }
@@ -281,7 +295,7 @@ export const getAllTests = async (req, res) => {
 
 export const createTest = async (req, res) => {
   try {
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, class: testClass } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, class: testClass, semester } = req.body;
     const createdBy = req?.userId; // Get user ID from request.
 
     if (!createdBy) {
@@ -363,12 +377,18 @@ export const createTest = async (req, res) => {
       }
     }
 
+    // Resolve semester — only for class 11/12
+    const resolvedSemester = (testClass === '11' || testClass === '12')
+      ? (semester && ['1', '2'].includes(semester) ? semester : null)
+      : null;
+
     const test = await Test.create({
       title,
       description,
       subject,
       chapter,
       class: testClass || null,
+      semester: resolvedSemester,
       timeLimit,
       coinFee: coinFee !== undefined ? coinFee : 0,
       isPublic,
@@ -424,7 +444,7 @@ export const createTest = async (req, res) => {
 export const updateTest = async (req, res) => {
   try {
     const { testId } = req.params;
-    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, questions, class: testClass } = req.body;
+    const { title, description, subject, chapter, timeLimit, isPublic, allowedUsers, allowedBatches, coinFee, questions, class: testClass, semester } = req.body;
     const userId = req?.userId;
 
     if (!userId) {
@@ -513,6 +533,16 @@ export const updateTest = async (req, res) => {
       ...(subject !== undefined && { subject }),
       ...(chapter !== undefined && { chapter }),
       ...(testClass !== undefined && { class: testClass }),
+      ...(testClass !== undefined && {
+        semester: (testClass === '11' || testClass === '12')
+          ? (semester && ['1', '2'].includes(semester) ? semester : null)
+          : null
+      }),
+      ...(testClass === undefined && semester !== undefined && {
+        semester: (test.class === '11' || test.class === '12')
+          ? (semester && ['1', '2'].includes(semester) ? semester : null)
+          : null
+      }),
       ...(timeLimit !== undefined && { timeLimit }),
       ...(coinFee !== undefined && { coinFee }),
       ...(isPublic !== undefined && { isPublic }),

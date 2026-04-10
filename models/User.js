@@ -64,6 +64,13 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
+  // Semester (only relevant for class 11 and 12)
+  semester: {
+    type: String,
+    enum: ['1', '2', null],
+    default: '1'
+  },
+
   // ==========================================
   // ACCOUNT MANAGEMENT
   // ==========================================
