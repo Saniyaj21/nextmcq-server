@@ -35,10 +35,10 @@ const testSchema = new mongoose.Schema({
       enum: ['8', '9', '10', '11', '12', 'other', null],
       default: null
     },
-    // Target semester (only relevant for class 11 and 12; null = all semesters)
+    // Target semester (only relevant for class 11 and 12; 1-2 for class 11, 3-4 for class 12; null = all semesters)
     semester: {
       type: String,
-      enum: ['1', '2', null],
+      enum: ['1', '2', '3', '4', null],
       default: null
     },
     description: {

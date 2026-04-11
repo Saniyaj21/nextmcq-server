@@ -431,13 +431,11 @@ export const completeOnboarding = async (req, res) => {
       updateData.class = userClass;
     }
 
-    // Add semester if class is 11 or 12
-    if (userClass === '11' || userClass === '12') {
-      if (semester && ['1', '2'].includes(semester)) {
-        updateData.semester = semester;
-      } else {
-        updateData.semester = '1'; // default to semester 1
-      }
+    // Add semester if class is 11 or 12 (class 11: semesters 1-2, class 12: semesters 3-4)
+    if (userClass === '11') {
+      updateData.semester = (semester && ['1', '2'].includes(semester)) ? semester : '1';
+    } else if (userClass === '12') {
+      updateData.semester = (semester && ['3', '4'].includes(semester)) ? semester : '3';
     }
 
     // Add referrer if referral code was provided
@@ -662,14 +660,19 @@ export const updateProfile = async (req, res) => {
       user.class = userClass;
     }
 
-    // Update semester if provided (only relevant for class 11/12)
+    // Update semester if provided (class 11: semesters 1-2, class 12: semesters 3-4)
     if (semester !== undefined) {
       const effectiveClass = userClass !== undefined ? userClass : user.class;
-      if (effectiveClass === '11' || effectiveClass === '12') {
+      if (effectiveClass === '11') {
         if (semester !== null && !['1', '2'].includes(semester)) {
-          return res.status(400).json({ success: false, message: 'Invalid semester. Must be 1 or 2' });
+          return res.status(400).json({ success: false, message: 'Invalid semester for class 11. Must be 1 or 2' });
         }
         user.semester = semester || '1';
+      } else if (effectiveClass === '12') {
+        if (semester !== null && !['3', '4'].includes(semester)) {
+          return res.status(400).json({ success: false, message: 'Invalid semester for class 12. Must be 3 or 4' });
+        }
+        user.semester = semester || '3';
       }
     }
 

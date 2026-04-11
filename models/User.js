@@ -64,10 +64,10 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
-  // Semester (only relevant for class 11 and 12)
+  // Semester (only relevant for class 11 and 12; 1-2 for class 11, 3-4 for class 12)
   semester: {
     type: String,
-    enum: ['1', '2', null],
+    enum: ['1', '2', '3', '4', null],
     default: '1'
   },
 

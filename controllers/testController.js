@@ -362,10 +362,12 @@ export const createTest = async (req, res) => {
       }
     }
 
-    // Resolve semester — only for class 11/12
-    const resolvedSemester = (testClass === '11' || testClass === '12')
+    // Resolve semester — class 11: semesters 1-2, class 12: semesters 3-4
+    const resolvedSemester = testClass === '11'
       ? (semester && ['1', '2'].includes(semester) ? semester : null)
-      : null;
+      : testClass === '12'
+        ? (semester && ['3', '4'].includes(semester) ? semester : null)
+        : null;
 
     const test = await Test.create({
       title,
@@ -516,14 +518,18 @@ export const updateTest = async (req, res) => {
       ...(chapter !== undefined && { chapter }),
       ...(testClass !== undefined && { class: testClass }),
       ...(testClass !== undefined && {
-        semester: (testClass === '11' || testClass === '12')
+        semester: testClass === '11'
           ? (semester && ['1', '2'].includes(semester) ? semester : null)
-          : null
+          : testClass === '12'
+            ? (semester && ['3', '4'].includes(semester) ? semester : null)
+            : null
       }),
       ...(testClass === undefined && semester !== undefined && {
-        semester: (test.class === '11' || test.class === '12')
+        semester: test.class === '11'
           ? (semester && ['1', '2'].includes(semester) ? semester : null)
-          : null
+          : test.class === '12'
+            ? (semester && ['3', '4'].includes(semester) ? semester : null)
+            : null
       }),
       ...(timeLimit !== undefined && { timeLimit }),
       ...(coinFee !== undefined && { coinFee }),
