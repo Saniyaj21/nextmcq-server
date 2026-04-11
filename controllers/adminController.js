@@ -488,9 +488,11 @@ export const updateTest = async (req, res) => {
 
     // Build update for test metadata
     const effectiveClass = testClass !== undefined ? testClass : test.class;
-    const resolvedSemester = (effectiveClass === '11' || effectiveClass === '12')
+    const resolvedSemester = effectiveClass === '11'
       ? (semester && ['1', '2'].includes(semester) ? semester : (testClass !== undefined ? null : test.semester))
-      : null;
+      : effectiveClass === '12'
+        ? (semester && ['3', '4'].includes(semester) ? semester : (testClass !== undefined ? null : test.semester))
+        : null;
 
     const updateData = {
       ...(title !== undefined && { title }),
