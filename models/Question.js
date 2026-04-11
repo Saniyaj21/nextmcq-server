@@ -57,6 +57,8 @@ questionSchema.pre('save', function(next) {
 });
 
 
+questionSchema.index({ createdBy: 1, createdAt: -1 });
+
 const Question = mongoose.model('Question', questionSchema);
 
 export default Question;

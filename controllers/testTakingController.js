@@ -27,18 +27,18 @@ const validateTestAccess = async (userId, testId) => {
 
   // Public tests are accessible to all
   if (test.isPublic) {
-    return true;
+    return test;
   }
 
   // Check if user is the creator
   if (test.createdBy.toString() === userId) {
-    return true;
+    return test;
   }
 
   // Check if user is in allowed users
   const hasIndividualAccess = test.allowedUsers.some(user => user.toString() === userId);
   if (hasIndividualAccess) {
-    return true;
+    return test;
   }
 
   // Check if user is in any allowed batches
@@ -50,7 +50,7 @@ const validateTestAccess = async (userId, testId) => {
     });
 
     if (userBatches.length > 0) {
-      return true;
+      return test;
     }
   }
 
@@ -157,14 +157,9 @@ export const startTest = async (req, res) => {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    // Validate access
-    await validateTestAccess(userId, testId);
-
-    // Get test with questions
-    const test = await Test.findById(testId).populate('questions');
-    if (!test) {
-      return res.status(404).json({ success: false, message: 'Test not found' });
-    }
+    // Validate access — returns the fetched test to avoid a second DB call (Fix #7)
+    const test = await validateTestAccess(userId, testId);
+    await test.populate('questions');
 
     // Auto-abandon any existing in-progress attempts for this user+test
     const inProgressAttempts = await TestAttempt.find({
@@ -174,18 +169,11 @@ export const startTest = async (req, res) => {
     });
 
     if (inProgressAttempts.length > 0) {
-      // Mark all in-progress attempts as abandoned
-      for (const oldAttempt of inProgressAttempts) {
-        oldAttempt.status = 'abandoned';
-        oldAttempt.completedAt = new Date();
-        
-        // Calculate time spent
-        const timeSpentMs = Date.now() - oldAttempt.serverStartTime.getTime();
-        oldAttempt.timeSpent = Math.floor(timeSpentMs / 1000);
-        
-        await oldAttempt.save();
-      }
-      
+      // Abandon all in-progress attempts with a single updateMany (Fix #10)
+      await TestAttempt.updateMany(
+        { _id: { $in: inProgressAttempts.map(a => a._id) } },
+        { $set: { status: 'abandoned', completedAt: new Date() } }
+      );
     }
 
     // Check if payment is required (first attempt only)
@@ -321,29 +309,19 @@ export const submitAnswer = async (req, res) => {
     );
 
     const isCorrect = question.correctAnswer === selectedAnswer;
+    const answerObj = { questionId, selectedAnswer, isCorrect, timeSpent: timeSpent || 0, submittedAt: new Date() };
 
+    // Use targeted update instead of a full document write (Fix #14)
     if (existingAnswerIndex >= 0) {
-      // Update existing answer
-      attempt.answers[existingAnswerIndex] = {
-        questionId,
-        selectedAnswer,
-        isCorrect,
-        timeSpent: timeSpent || 0,
-        submittedAt: new Date()
-      };
+      await TestAttempt.findByIdAndUpdate(attemptId, {
+        $set: { [`answers.${existingAnswerIndex}`]: answerObj, lastUpdated: new Date() }
+      });
     } else {
-      // Add new answer
-      attempt.answers.push({
-        questionId,
-        selectedAnswer,
-        isCorrect,
-        timeSpent: timeSpent || 0,
-        submittedAt: new Date()
+      await TestAttempt.findByIdAndUpdate(attemptId, {
+        $push: { answers: answerObj },
+        $set: { lastUpdated: new Date() }
       });
     }
-
-    attempt.lastUpdated = new Date();
-    await attempt.save();
 
     res.status(200).json({
       success: true,
@@ -390,12 +368,18 @@ export const submitTest = async (req, res) => {
     // Validate time spent
     const validatedTimeSpent = validateTimeSpent(attempt, clientEndTime);
 
-    // Process client answers and validate with server data
+    // Bulk-fetch all questions in one query instead of N sequential findById calls (Fix #1)
+    const questionIds = clientAnswers.map(a => a.questionId);
+    const questionsArr = await Question.find({ _id: { $in: questionIds } })
+      .lean()
+      .select('correctAnswer');
+    const questionMap = new Map(questionsArr.map(q => [q._id.toString(), q]));
+
     const processedAnswers = [];
     let correctCount = 0;
 
     for (const clientAnswer of clientAnswers) {
-      const question = await Question.findById(clientAnswer.questionId);
+      const question = questionMap.get(clientAnswer.questionId?.toString());
       if (question) {
         const isCorrect = question.correctAnswer === clientAnswer.selectedAnswer;
         if (isCorrect) correctCount++;

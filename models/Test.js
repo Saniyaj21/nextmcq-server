@@ -151,6 +151,10 @@ testSchema.virtual('isPromoted').get(function() {
   return this.promotedUntil && new Date() < this.promotedUntil;
 });
 
+testSchema.index({ createdBy: 1, createdAt: -1 });
+testSchema.index({ subject: 1, class: 1, semester: 1 });
+testSchema.index({ promotedUntil: -1 });
+
 const Test = mongoose.model('Test', testSchema);
 
 export default Test;

@@ -4,7 +4,12 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nextmcq';
     
-    const conn = await mongoose.connect(mongoURI);
+    const conn = await mongoose.connect(mongoURI, {
+      maxPoolSize: 20,
+      minPoolSize: 5,
+      socketTimeoutMS: 30000,
+      serverSelectionTimeoutMS: 5000,
+    });
 
     
     // Handle connection events

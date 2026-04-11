@@ -147,23 +147,7 @@ export const getAllTests = async (req, res) => {
       });
     }
 
-    // Lookup ratings array for aggregation
-    pipeline.push({
-      $lookup: {
-        from: 'ratings',
-        localField: '_id',
-        foreignField: 'testId',
-        as: 'ratings'
-      }
-    });
-
-    // Compute averageRating and totalRatings
-    pipeline.push({
-      $addFields: {
-        averageRating: { $cond: [{ $gt: [{ $size: '$ratings' }, 0] }, { $round: [{ $avg: '$ratings.rating' }, 1] }, 0] },
-        totalRatings: { $size: '$ratings' }
-      }
-    });
+    // averageRating and totalRatings are stored on the document — no $lookup needed (Fix #8)
 
     // Filter by minRating
     if (minRatingNum > 0) {
@@ -272,7 +256,7 @@ export const getAllTests = async (req, res) => {
       }
     });
 
-    const aggResult = await Test.aggregate(pipeline).allowDiskUse(true);
+    const aggResult = await Test.aggregate(pipeline);
 
     const metadata = aggResult[0].metadata[0] || { total: 0 };
     const data = aggResult[0].data || [];
@@ -340,11 +324,12 @@ export const createTest = async (req, res) => {
       }
     }
 
+    // Fetch teacher once and reuse throughout the handler (Fix #6)
+    const teacher = await User.findById(createdBy);
+
     // Validate allowedBatches if provided
     if (allowedBatches && Array.isArray(allowedBatches) && allowedBatches.length > 0) {
       const Batch = (await import('../models/Batch.js')).default;
-      const teacher = await User.findById(createdBy);
-      
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(403).json({
           success: false,
@@ -402,8 +387,6 @@ export const createTest = async (req, res) => {
       coins: getSetting('rewards.teacher.create_test.coins', REWARDS.TEACHER.CREATE_TEST.coins),
       xp: getSetting('rewards.teacher.create_test.xp', REWARDS.TEACHER.CREATE_TEST.xp)
     };
-    const teacher = await User.findById(createdBy);
-    
     if (teacher) {
       // Update teacher stats
       teacher.teacher.testsCreated = (teacher.teacher.testsCreated || 0) + 1;
@@ -414,7 +397,6 @@ export const createTest = async (req, res) => {
 
     // Create post for teacher test creation
     try {
-      const teacher = await User.findById(createdBy);
       await Post.create({
         type: 'teacher_test_created',
         title: 'New Test Published',

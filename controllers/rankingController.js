@@ -73,32 +73,21 @@ export const getLeaderboard = async (req, res) => {
       instituteIdForQuery = institute;
     }
 
-    // Get leaderboard with filters
+    // Get leaderboard with filters — pass skip so MongoDB skips in-pipeline (Fix #16)
     leaderboard = await User.getLeaderboard(
       category,
-      limitNum + skip,
+      limitNum,
       instituteIdForQuery,
-      levelFilter  // NEW: Pass level filter
+      levelFilter,
+      skip
     );
 
-    // Apply pagination
-    const paginatedLeaderboard = leaderboard.slice(skip, skip + limitNum);
-
-    // Add actual global role-specific ranks to each user
-    // Calculate the rank for each user independently to show their true position
-    const leaderboardWithRanks = await Promise.all(
-      paginatedLeaderboard.map(async (user, index) => {
-        // Get the actual rank for this user in their role category
-        const rankResult = await User.getUserRanking(user._id, category);
-        const actualRank = rankResult && rankResult.length > 0 ? rankResult[0].rank : (skip + index + 1);
-        
-        return {
-          ...user,
-          rank: actualRank,
-          badges: user.badges || [] // Ensure badges are included
-        };
-      })
-    );
+    // Rank is derived from the user's position in the sorted slice (Fix #2)
+    const leaderboardWithRanks = leaderboard.map((user, index) => ({
+      ...user,
+      rank: skip + index + 1,
+      badges: user.badges || []
+    }));
 
     // Get total count for pagination info with filters
     let countQuery = { isActive: true };
@@ -141,8 +130,6 @@ export const getLeaderboard = async (req, res) => {
         }
       }
     };
-
-    console.log('LEADERBOARD RESPONSE:', JSON.stringify(responseData, null, 2));
 
     res.status(200).json(responseData);
 

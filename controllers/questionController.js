@@ -86,20 +86,17 @@ export const createQuestion = async (req, res) => {
       });
     }
 
-    // Validate tests array if provided
+    // Validate tests array if provided — bulk query instead of N sequential findOne calls (Fix #11)
     let validTests = [];
-    if (tests && Array.isArray(tests)) {
-      // Verify that all test IDs exist and belong to the user
-      for (const testId of tests) {
-        const test = await Test.findOne({ _id: testId, createdBy });
-        if (!test) {
-          return res.status(400).json({
-            success: false,
-            message: `Test with ID ${testId} not found or access denied`
-          });
-        }
-        validTests.push(testId);
+    if (tests && Array.isArray(tests) && tests.length > 0) {
+      const foundTests = await Test.find({ _id: { $in: tests }, createdBy }).select('_id').lean();
+      if (foundTests.length !== tests.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more tests not found or access denied'
+        });
       }
+      validTests = tests;
     }
 
     // Create the question
@@ -199,19 +196,17 @@ export const updateQuestion = async (req, res) => {
       });
     }
 
-    // Validate tests array if provided
+    // Validate tests array if provided — bulk query instead of N sequential findOne calls (Fix #11)
     let validTests = [];
-    if (tests && Array.isArray(tests)) {
-      for (const testId of tests) {
-        const test = await Test.findOne({ _id: testId, createdBy: userId });
-        if (!test) {
-          return res.status(400).json({
-            success: false,
-            message: `Test with ID ${testId} not found or access denied`
-          });
-        }
-        validTests.push(testId);
+    if (tests && Array.isArray(tests) && tests.length > 0) {
+      const foundTests = await Test.find({ _id: { $in: tests }, createdBy: userId }).select('_id').lean();
+      if (foundTests.length !== tests.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more tests not found or access denied'
+        });
       }
+      validTests = tests;
     }
 
     // Get previous tests to remove question from them if needed
