@@ -68,7 +68,7 @@ const userSchema = new mongoose.Schema({
   semester: {
     type: String,
     enum: ['1', '2', '3', '4', null],
-    default: '1'
+    default: null
   },
 
   // ==========================================
