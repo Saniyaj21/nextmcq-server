@@ -17,6 +17,7 @@ import feedbackRoutes from './routes/feedback.js';
 import batchRoutes from './routes/batch.js';
 import adminRoutes from './routes/admin.js';
 import battleRoutes from './routes/battle.js';
+import donationRoutes from './routes/donation.js';
 import { loadSettings } from './utils/settingsCache.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -68,6 +69,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/battle', battleRoutes);
+app.use('/api/donation', donationRoutes);
 
 // Account deletion page route (for Google Play Store compliance)
 app.get('/account-deletion', (req, res) => {
