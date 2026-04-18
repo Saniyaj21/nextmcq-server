@@ -3,8 +3,6 @@ import Question from '../models/Question.js';
 import Test from '../models/Test.js';
 import User from '../models/User.js';
 import Subject from '../models/Subject.js';
-import { REWARDS } from '../constants/rewards.js';
-import { getSetting } from '../utils/settingsCache.js';
 
 // Generate a random 6-character battle code
 const generateBattleCode = () => {
@@ -45,53 +43,11 @@ const checkAndExpireBattle = async (battle) => {
       battle.isDraw = true;
     }
 
-    await distributeBattleRewards(battle);
     await battle.save();
     return battle;
   }
 
   return battle;
-};
-
-// Distribute rewards to winner/loser
-const distributeBattleRewards = async (battle) => {
-  const winnerCoins = getSetting('rewards.battle.winner.coins', REWARDS.BATTLE.WINNER.coins);
-  const winnerXp = getSetting('rewards.battle.winner.xp', REWARDS.BATTLE.WINNER.xp);
-  const loserCoins = getSetting('rewards.battle.loser.coins', REWARDS.BATTLE.LOSER.coins);
-  const loserXp = getSetting('rewards.battle.loser.xp', REWARDS.BATTLE.LOSER.xp);
-  const drawCoins = getSetting('rewards.battle.draw.coins', REWARDS.BATTLE.DRAW.coins);
-  const drawXp = getSetting('rewards.battle.draw.xp', REWARDS.BATTLE.DRAW.xp);
-
-  if (battle.isDraw) {
-    battle.rewards = {
-      winner: { coins: drawCoins, xp: drawXp },
-      loser: { coins: drawCoins, xp: drawXp }
-    };
-
-    const [creator, opponent] = await Promise.all([
-      User.findById(battle.creator),
-      User.findById(battle.opponent)
-    ]);
-    if (creator) await creator.addRewards(drawCoins, drawXp, 'battle_draw');
-    if (opponent) await opponent.addRewards(drawCoins, drawXp, 'battle_draw');
-  } else if (battle.winner) {
-    battle.rewards = {
-      winner: { coins: winnerCoins, xp: winnerXp },
-      loser: { coins: loserCoins, xp: loserXp }
-    };
-
-    const winnerId = battle.winner.toString();
-    const loserId = battle.creator.toString() === winnerId
-      ? battle.opponent.toString()
-      : battle.creator.toString();
-
-    const [winner, loser] = await Promise.all([
-      User.findById(winnerId),
-      User.findById(loserId)
-    ]);
-    if (winner) await winner.addRewards(winnerCoins, winnerXp, 'battle_win');
-    if (loser) await loser.addRewards(loserCoins, loserXp, 'battle_loss');
-  }
 };
 
 // Check win conditions after an answer submission
@@ -108,7 +64,6 @@ const checkWinConditions = async (battle, playerId) => {
     battle.completedAt = new Date();
     playerState.isFinished = true;
     playerState.finishedAt = new Date();
-    await distributeBattleRewards(battle);
     return true;
   }
 
@@ -128,7 +83,6 @@ const checkWinConditions = async (battle, playerId) => {
     } else {
       battle.isDraw = true;
     }
-    await distributeBattleRewards(battle);
     return true;
   }
 
@@ -618,7 +572,6 @@ export const forfeitBattle = async (req, res) => {
     battle.winReason = 'opponent_quit';
     battle.completedAt = new Date();
 
-    await distributeBattleRewards(battle);
     await battle.save();
 
     res.status(200).json({
