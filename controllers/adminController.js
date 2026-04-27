@@ -622,7 +622,7 @@ export const importTest = async (req, res) => {
     // Create test
     const validClasses = ['8', '9', '10', '11', '12', 'other'];
     const testClass = testData.class && validClasses.includes(testData.class) ? testData.class : null;
-    const testSemester = (testClass === '11' || testClass === '12') && ['1', '2'].includes(testData.semester)
+    const testSemester = (testClass === '11' || testClass === '12') && ['1', '2', '3', '4'].includes(testData.semester)
       ? testData.semester
       : null;
 
