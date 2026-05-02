@@ -423,6 +423,7 @@ export const completeOnboarding = async (req, res) => {
       name: name.trim(),
       role,
       isProfileComplete: true,
+      isActive: true,
       referralCode: userReferralCode
     };
 
