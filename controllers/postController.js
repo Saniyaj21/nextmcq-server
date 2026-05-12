@@ -34,28 +34,12 @@ export const getRecentPosts = async (req, res) => {
 export const createPost = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { title, description } = req.body;
-
-    // Validate required fields
-    if (!title || !title.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Post title is required'
-      });
-    }
+    const { description } = req.body;
 
     if (!description || !description.trim()) {
       return res.status(400).json({
         success: false,
         message: 'Post description is required'
-      });
-    }
-
-    // Validate length
-    if (title.trim().length > 200) {
-      return res.status(400).json({
-        success: false,
-        message: 'Title cannot exceed 200 characters'
       });
     }
 
@@ -66,11 +50,9 @@ export const createPost = async (req, res) => {
       });
     }
 
-    // Create post
     const post = new Post({
       type: 'user_post',
       creator: userId,
-      title: title.trim(),
       description: description.trim(),
       data: {}
     });

@@ -33,6 +33,11 @@ const postSchema = new mongoose.Schema(
       required: false,
       index: true,
       default: ''
+    },
+    replyCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     }
   },
   {
